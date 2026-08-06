@@ -1,0 +1,7 @@
+ M scripts/render.py
+ M src/geosim/blenderproc_runner.py
+ M src/geosim/isaacsim_runner.py
+origin	git@github.com:CrisWang6/Simulation.git (fetch)
+origin	git@github.com:CrisWang6/Simulation.git (push)
+1f07b35 (HEAD -> main) isaacsim generate
+07c5d01 (origin/main) Initial simulation pipeline

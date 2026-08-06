@@ -1,0 +1,26 @@
+{
+  "seed": 7,
+  "camera_physical": {
+    "exposure_time_s": 0.008333333333333333,
+    "readout_time_s": 0.004,
+    "iso": 800.0,
+    "aperture_f_number": 2.0,
+    "sensor_width_mm": 5.6,
+    "sensor_height_mm": 3.2,
+    "lens_transmission": 0.85
+  },
+  "image_degradation": {
+    "motion_blur_px": 2.5,
+    "motion_blur_angle_deg": 0.0,
+    "gaussian_blur_sigma_px": 0.2,
+    "shot_noise_std": 0.008,
+    "read_noise_std": 0.006,
+    "brightness_scale": 0.98,
+    "contrast_scale": 1.02,
+    "glare_probability": 0.02,
+    "glare_radius_px": 28,
+    "dropout_probability": 0.0,
+    "occluder_probability": 0.03,
+    "occluder_count": 1
+  }
+}

@@ -1,0 +1,28 @@
+﻿{
+  "schema": "calibrate.device_calibration_report.v1",
+  "cameras": {
+    "CAM_A": {
+      "error": "There is no Camera data available corresponding to the the requested cameraId"
+    },
+    "CAM_B": {
+      "error": "There is no Camera data available corresponding to the the requested cameraId"
+    },
+    "CAM_C": {
+      "error": "There is no Camera data available corresponding to the the requested cameraId"
+    },
+    "CAM_D": {
+      "error": "There is no Camera data available corresponding to the the requested cameraId"
+    }
+  },
+  "camera_extrinsics": {},
+  "imu": {
+    "firmware": "3.2.13",
+    "imu_to_CAM_A_error": "IMU calibration data is not available on device yet.",
+    "imu_to_CAM_B_error": "IMU calibration data is not available on device yet.",
+    "imu_to_CAM_C_error": "IMU calibration data is not available on device yet.",
+    "imu_to_CAM_D_error": "IMU calibration data is not available on device yet."
+  }
+}
+
+
+

@@ -1,0 +1,33 @@
+[project]
+name = "oak-multicamera-tools"
+version = "0.1.0"
+description = "OAK/DepthAI multi-camera capture, synchronization, diagnostics, and calibration tools."
+requires-python = ">=3.10"
+dependencies = [
+  "depthai>=2.32,<4",
+  "numpy>=1.26,<3",
+  "opencv-contrib-python>=4.8,<5",
+  "scipy>=1.11",
+  "pupil-apriltags>=1.0.4",
+  "matplotlib>=3.8",
+  "Pillow>=10",
+  "psutil>=5.9",
+  "imageio-ffmpeg>=0.5",
+]
+
+[project.optional-dependencies]
+gui = [
+  "PyQt5>5,<5.15.6; platform_machine != 'aarch64' and platform_machine != 'arm64'",
+  "PySimpleGUI-4-foss==4.60.4.1",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.9",
+]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []

@@ -1,0 +1,102 @@
+﻿{
+    "batchName": "",
+    "batchTime": 0,
+    "boardConf": "IR-C00M00-00",
+    "boardCustom": "",
+    "boardName": "DD2090",
+    "boardOptions": 0,
+    "boardRev": "R7M1E7",
+    "cameraData": [],
+    "deviceName": "",
+    "hardwareConf": "F0-FV00-BC000",
+    "housingExtrinsics": {
+        "rotationMatrix": [],
+        "specTranslation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        },
+        "toCameraSocket": -1,
+        "translation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        }
+    },
+    "imuExtrinsics": {
+        "rotationMatrix": [
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ]
+        ],
+        "specTranslation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        },
+        "toCameraSocket": -1,
+        "translation": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+        }
+    },
+    "miscellaneousData": [],
+    "productName": "OAK-FFC-4P",
+    "stereoEnableDistortionCorrection": false,
+    "stereoRectificationData": {
+        "leftCameraSocket": 255,
+        "rectifiedRotationLeft": [
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ]
+        ],
+        "rectifiedRotationRight": [
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ],
+            [
+                0.0,
+                0.0,
+                0.0
+            ]
+        ],
+        "rightCameraSocket": 255
+    },
+    "stereoUseSpecTranslation": true,
+    "version": 7,
+    "verticalCameraSocket": -1
+}
+
+

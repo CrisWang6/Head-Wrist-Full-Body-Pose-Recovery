@@ -1,0 +1,23 @@
+[project]
+name = "egorear-sim2d-heatmap"
+version = "0.1.0"
+description = "Stage-1 2D heatmap training pipeline for Simulation ego-camera renders."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.23",
+  "opencv-python>=4.8",
+  "torch>=2.2",
+  "tensorboard>=2.20",
+]
+
+[project.optional-dependencies]
+multiview = [
+  "Pillow>=10",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,23 @@
+{
+  "dataset": "data/real_0717_training",
+  "images": "data/real_0717_training/images_h265_strict/module01/{CAM_B,CAM_C}",
+  "mocap": "data/real_0717_training/aligned_30hz.csv",
+  "views": ["module01_CAM_B", "module01_CAM_C"],
+  "projection": "Kalibr omni+radtan, front 180 degrees",
+  "camera_pose": "mocap Head position/orientation + measured CAM_B mount + calibrated T_C_B",
+  "time_alignment": "per-camera exposure clock affine fit followed by mocap position interpolation and quaternion SLERP",
+  "label_file": "data/labels/real_0717_head2cam/heatmap_labels_114x64.npz",
+  "initial_weights": "checkpoints/isaacsim_humaneva_2app_notags_fisheye220_head_stage1/best.pt",
+  "training": {
+    "gpu": 1,
+    "duration_hours": 48,
+    "internal_clean_stop_hours": 47.75,
+    "batch_size": 16,
+    "learning_rate": 0.0001,
+    "split": "chronological 80/20",
+    "branch": "head only",
+    "visible_only_loss": true,
+    "output": "checkpoints/real_0717_head2cam_stage1_48h",
+    "tensorboard_log": "logs/real_0717_head2cam_stage1_48h"
+  }
+}

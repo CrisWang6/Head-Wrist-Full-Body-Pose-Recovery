@@ -1,0 +1,18 @@
+[Unit]
+Description=GPIO4 button listener for 9cam recording
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=whr
+Group=whr
+WorkingDirectory=/home/whr/HearWristCam
+ExecStart=/home/whr/miniforge3/envs/camtest/bin/python /home/whr/HearWristCam/test_code/head_wrist_record/gpio4_start_9cam.py
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

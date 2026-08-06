@@ -1,0 +1,7 @@
+[0:v]scale=960:600,drawbox=x=0:y=0:w=iw:h=ih:color=yellow:t=6,drawtext=text='YOLO Pose  |  CAM A':x=24:y=24:fontsize=30:fontcolor=yellow:borderw=2[a];
+[1:v]scale=960:600,drawbox=x=0:y=0:w=iw:h=ih:color=cyan:t=6,drawtext=text='RTMPose-X  |  CAM A':x=24:y=24:fontsize=30:fontcolor=cyan:borderw=2[b];
+[2:v]scale=960:600,drawbox=x=0:y=0:w=iw:h=ih:color=yellow:t=6,drawtext=text='YOLO Pose  |  CAM D':x=24:y=24:fontsize=30:fontcolor=yellow:borderw=2[c];
+[3:v]scale=960:600,drawbox=x=0:y=0:w=iw:h=ih:color=cyan:t=6,drawtext=text='RTMPose-X  |  CAM D':x=24:y=24:fontsize=30:fontcolor=cyan:borderw=2[d];
+[a][b]hstack=inputs=2[top];
+[c][d]hstack=inputs=2[bottom];
+[top][bottom]vstack=inputs=2[out]

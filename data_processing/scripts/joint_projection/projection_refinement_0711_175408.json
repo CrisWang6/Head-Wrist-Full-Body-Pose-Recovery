@@ -1,0 +1,21 @@
+{
+  "schema": "joint_projection.multiframe_axis_offset_refinement.v1",
+  "dataset": "0711_175408",
+  "R_world_ch01": [
+    [-0.9991426561471793, -0.041081782675449284, -0.005122479806336992],
+    [-0.004727236128778212, -0.00971227821060178, 0.999941660743537],
+    [-0.04112913694380102, 0.9991085820791291, 0.009509748161282744]
+  ],
+  "t_world_ch01_m": [-1.7213954837553214, 1.3977492737960404, 1.897041851587589],
+  "R_ch07_axis_correction": [
+    [0.0, -1.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.0, 0.0, 1.0]
+  ],
+  "t_ch07_axis_correction_m": [-0.00387265, -0.06366961, -0.14704196],
+  "notes": [
+    "CH01-to-world is estimated by multi-frame Kabsch alignment of the YOLO11x-pose stereo head landmark trajectory to CH07; median anchor residual is 45.5 mm and P90 is 84.1 mm.",
+    "The visually and mechanically consistent residual axis correction is CH07 Z +90 degrees.",
+    "The shared translation offset is estimated from 1495 high-confidence shoulder/elbow/wrist correspondences in both module01 cameras while holding Z +90 degrees fixed."
+  ]
+}

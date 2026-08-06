@@ -1,0 +1,67 @@
+{
+  "schema": "joint_projection.v1",
+  "dataset_root": "C:\\Users\\hand\\Desktop\\Dataset\\0722",
+  "aligned_csv": "C:\\Users\\hand\\Desktop\\Dataset\\0722\\record_9cam_0711_021044\\aligned_data\\aligned_30hz.csv",
+  "images_root": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\joint_projection\\validation_0722_head_ch3_08_random100_final\\source_frames",
+  "output_root": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\joint_projection\\validation_0722_head_ch3_08_random100_final\\results",
+  "mocap_position_unit": "cm",
+  "image_size": [1920, 1200],
+  "lens_fov_deg": 180.0,
+  "projection_model": "kalibr_omni_radtan",
+  "head_orientation": {
+    "source": "mocap_CH3_08_Rigid_K_per_frame",
+    "position_source": "aligned_30hz.csv mocap_CH3_08_Rigid_K_world_xyz (meters)",
+    "attitude_source": "aligned_30hz.csv mocap_CH3_08_Rigid_K_world_qwxyz"
+  },
+  "samples_per_camera": 100,
+  "random_seed": 20260722,
+  "dot_radius_px": 5,
+  "bone_thickness_px": 3,
+  "skeleton_joint_names": [
+    "Hips", "Spine", "Spine1", "Spine2", "Neck", "Neck1",
+    "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+    "RightShoulder", "RightArm", "RightForeArm", "RightHand",
+    "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot"
+  ],
+  "skeleton_edges": [
+    ["Hips", "Spine"], ["Spine", "Spine1"], ["Spine1", "Spine2"],
+    ["Spine2", "Neck"], ["Neck", "Neck1"],
+    ["Spine2", "LeftShoulder"], ["LeftShoulder", "LeftArm"],
+    ["LeftArm", "LeftForeArm"], ["LeftForeArm", "LeftHand"],
+    ["Spine2", "RightShoulder"], ["RightShoulder", "RightArm"],
+    ["RightArm", "RightForeArm"], ["RightForeArm", "RightHand"],
+    ["Hips", "LeftUpLeg"], ["LeftUpLeg", "LeftLeg"], ["LeftLeg", "LeftFoot"],
+    ["Hips", "RightUpLeg"], ["RightUpLeg", "RightLeg"], ["RightLeg", "RightFoot"]
+  ],
+  "head_relative_bc_yaml": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\calibrate\\parameters\\extrinsics\\head\\kalibr_extrinsics_pairs_1920x1200_20260717\\head_BC-camchain.yaml",
+  "cameras": {
+    "module01_CAM_B": {
+      "module": "module01",
+      "camera": "CAM_B",
+      "anchor_joint": "CH3_08_Rigid_K",
+      "anchor_position_unit": "m",
+      "position_anchor_mm": [25.5, 89.0, -79.8],
+      "camera_axes_anchor": {
+        "x": [0.0, 1.0, 0.0],
+        "y": [1.0, 0.0, 0.0],
+        "z": [0.0, 0.0, -1.0]
+      },
+      "intrinsics": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\calibrate\\parameters\\intrinsics\\head\\head_intrinsics_kalibr_omni_1920x1200.json",
+      "orientation_source": "CH3_08_rigid_to_camera_axes"
+    },
+    "module01_CAM_C": {
+      "module": "module01",
+      "camera": "CAM_C",
+      "anchor_joint": "CH3_08_Rigid_K",
+      "anchor_position_unit": "m",
+      "position_anchor_mm": [25.5, -85.0, -79.8],
+      "camera_axes_anchor": {
+        "x": [0.0, 1.0, 0.0],
+        "y": [1.0, 0.0, 0.0],
+        "z": [0.0, 0.0, -1.0]
+      },
+      "intrinsics": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\calibrate\\parameters\\intrinsics\\head\\head_intrinsics_kalibr_omni_1920x1200.json",
+      "orientation_source": "CH3_08_rigid_to_camera_axes"
+    }
+  }
+}

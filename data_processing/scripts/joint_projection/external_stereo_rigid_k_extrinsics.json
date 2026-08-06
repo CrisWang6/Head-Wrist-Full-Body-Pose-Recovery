@@ -1,0 +1,101 @@
+{
+  "schema": "joint_projection.external_stereo_rigid_extrinsics.v1",
+  "recorded_date": "2026-08-03",
+  "rigid_body": "K",
+  "units": {
+    "translation": "mm",
+    "rotation": "dimensionless"
+  },
+  "source_measurement": {
+    "left_camera_dx_dy_dz_mm": [92.7, -59.4, -35.8],
+    "right_camera_dx_dy_dz_mm": [-117.3, -59.4, -35.8],
+    "axis_relation_user_text": "rigid x = camera x, rigid y = -camera z, rigid z = camera y"
+  },
+  "convention": {
+    "p_rigid_camera_mm": "camera optical-center position expressed in rigid-K coordinates",
+    "R_rigid_camera": "maps a vector from camera coordinates into rigid-K coordinates",
+    "T_rigid_camera": "p_rigid = R_rigid_camera * p_camera + p_rigid_camera_mm",
+    "T_camera_rigid": "inverse transform: p_camera = T_camera_rigid * p_rigid",
+    "homogeneous_matrix_layout": "row-major 4x4"
+  },
+  "shared_rotation": {
+    "camera_axes_expressed_in_rigid": {
+      "camera_positive_x": [1.0, 0.0, 0.0],
+      "camera_positive_y": [0.0, 0.0, 1.0],
+      "camera_positive_z": [0.0, -1.0, 0.0]
+    },
+    "R_rigid_camera": [
+      [1.0, 0.0, 0.0],
+      [0.0, 0.0, -1.0],
+      [0.0, 1.0, 0.0]
+    ]
+  },
+  "cameras": {
+    "left": {
+      "p_rigid_camera_mm": [92.7, -59.4, -35.8],
+      "R_rigid_camera": [
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 1.0, 0.0]
+      ],
+      "T_rigid_camera": [
+        [1.0, 0.0, 0.0, 92.7],
+        [0.0, 0.0, -1.0, -59.4],
+        [0.0, 1.0, 0.0, -35.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "T_camera_rigid": [
+        [1.0, 0.0, 0.0, -92.7],
+        [0.0, 0.0, 1.0, 35.8],
+        [0.0, -1.0, 0.0, -59.4],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "right": {
+      "p_rigid_camera_mm": [-117.3, -59.4, -35.8],
+      "R_rigid_camera": [
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, -1.0],
+        [0.0, 1.0, 0.0]
+      ],
+      "T_rigid_camera": [
+        [1.0, 0.0, 0.0, -117.3],
+        [0.0, 0.0, -1.0, -59.4],
+        [0.0, 1.0, 0.0, -35.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "T_camera_rigid": [
+        [1.0, 0.0, 0.0, 117.3],
+        [0.0, 0.0, 1.0, 35.8],
+        [0.0, -1.0, 0.0, -59.4],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    }
+  },
+  "stereo_relation_derived_from_rigid_measurements": {
+    "baseline_mm": 210.0,
+    "T_right_camera_left_camera": {
+      "description": "maps left-camera coordinates into right-camera coordinates",
+      "matrix": [
+        [1.0, 0.0, 0.0, 210.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "T_left_camera_right_camera": {
+      "description": "maps right-camera coordinates into left-camera coordinates",
+      "matrix": [
+        [1.0, 0.0, 0.0, -210.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    }
+  },
+  "assumptions": [
+    "The supplied dx/dy/dz values locate each camera optical center in rigid-K coordinates.",
+    "Left and right cameras have the same stated axis orientation relative to rigid K.",
+    "The 210.0 mm stereo baseline is derived from the supplied x offsets and is not an independent stereo-calibration result."
+  ]
+}

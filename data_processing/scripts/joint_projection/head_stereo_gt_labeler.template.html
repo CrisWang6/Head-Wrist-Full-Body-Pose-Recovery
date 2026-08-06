@@ -1,0 +1,234 @@
+<div id="head-gt-selector-root">
+  <style>
+    #head-gt-selector-root { width: 100%; color: var(--foreground); }
+    #head-gt-selector-root .gt-top { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    #head-gt-selector-root .gt-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 22px; }
+    #head-gt-selector-root .gt-choice { min-width:0; }
+    #head-gt-selector-root .gt-choice-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+    #head-gt-selector-root .gt-pair { display:grid; grid-template-columns:1fr 1fr; gap:3px; }
+    #head-gt-selector-root img { display:block; width:100%; height:auto; }
+    #head-gt-selector-root .gt-ref-thumb { margin-top:3px; }
+    #head-gt-selector-root .gt-note { color:var(--muted-foreground); }
+    #head-gt-selector-root .gt-error { color:var(--destructive); min-height:1.25em; }
+    #head-gt-selector-root .gt-status { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    #head-gt-selector-root .gt-tabs { display:flex; gap:6px; }
+    #head-gt-selector-root .gt-reference { margin-bottom:10px; }
+    #head-gt-selector-root .gt-reference-label { display:flex; justify-content:space-between; gap:8px; margin-bottom:5px; }
+    #head-gt-selector-root .gt-canvas-wrap { position:relative; width:100%; }
+    #head-gt-selector-root canvas { display:block; width:100%; height:auto; cursor:crosshair; background:var(--muted); }
+    #head-gt-selector-root .gt-next { margin:8px 0; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    #head-gt-selector-root .gt-next-name { font-weight:600; }
+    #head-gt-selector-root .gt-actions { margin-top:10px; }
+    #head-gt-selector-root .gt-meta { margin-top:10px; }
+    #head-gt-selector-root .gt-meta summary { cursor:pointer; }
+    #head-gt-selector-root .gt-meta table { margin-top:6px; }
+    #head-gt-selector-root .gt-complete { display:none; margin:10px 0; }
+    #head-gt-selector-root #gt-label-phase { display:none; }
+    @media (max-width:700px) { #head-gt-selector-root .gt-grid { grid-template-columns:1fr; } }
+  </style>
+
+  <section id="gt-select-phase" aria-label="候选帧选择">
+    <div class="gt-top">
+      <div>
+        <div>先从 20 个候选同步帧中选择 5–10 个</div>
+        <div class="text-small gt-note">每项依次显示头部 CAM_A、CAM_D，以及同一时刻的外部双目骨架参考。</div>
+      </div>
+      <div class="viz-row">
+        <span class="viz-badge" id="gt-selected-count">已选择 0/10</span>
+        <button class="btn btn-primary" id="gt-start" type="button" disabled>开始标注</button>
+      </div>
+    </div>
+    <div class="gt-error text-small" id="gt-select-error"></div>
+    <div class="gt-grid" id="gt-candidate-grid"></div>
+  </section>
+
+  <section id="gt-label-phase" aria-label="二维关键点标注">
+    <div class="gt-status">
+      <div class="viz-row">
+        <span class="viz-badge" id="gt-sample-status"></span>
+        <span class="viz-badge" id="gt-progress-status"></span>
+        <span class="text-small gt-note">Z 撤回最近一次</span>
+      </div>
+      <div class="gt-tabs" role="group" aria-label="头部双目视角">
+        <button class="btn" id="gt-tab-a" type="button" aria-pressed="true">头部 CAM_A</button>
+        <button class="btn" id="gt-tab-d" type="button" aria-pressed="false">头部 CAM_D</button>
+      </div>
+    </div>
+
+    <div class="gt-reference">
+      <div class="gt-reference-label">
+        <span>外部双目 2D 骨架参考（同一同步帧）</span>
+        <span class="text-small gt-note">左：外部 CAM_A　右：外部 CAM_D；红=原始，绿=过滤</span>
+      </div>
+      <img id="gt-reference-image" alt="同一时刻的外部双目二维骨架识别结果">
+    </div>
+
+    <div class="gt-next">
+      <span>下一次点击：</span><span class="gt-next-name" id="gt-next-joint"></span>
+      <span class="text-small gt-note" id="gt-view-exposure"></span>
+    </div>
+    <div class="gt-canvas-wrap"><canvas id="gt-canvas" width="480" height="300" role="img" aria-label="头部相机人工二维关键点标注画布"></canvas></div>
+    <div class="gt-complete card" id="gt-complete-message">所选帧的双目标注已完成，可以导出 JSON 和 CSV。</div>
+
+    <div class="viz-controls gt-actions">
+      <button class="btn" id="gt-back-select" type="button">返回选择</button>
+      <button class="btn" id="gt-invisible" type="button">当前点不可见</button>
+      <button class="btn" id="gt-undo" type="button">撤回（Z）</button>
+      <button class="btn btn-primary" id="gt-next-frame" type="button" disabled>下一张</button>
+      <button class="btn" id="gt-export-json" type="button">导出 JSON</button>
+      <button class="btn" id="gt-export-csv" type="button">导出 CSV</button>
+      <span class="text-small gt-note" id="gt-save-status">自动保存在当前浏览器</span>
+    </div>
+    <details class="gt-meta"><summary>当前同步帧参数</summary><div class="table-responsive"><table class="table table-sm"><tbody id="gt-meta-body"></tbody></table></div></details>
+  </section>
+
+  <script>
+    (() => {
+      const DATA = __DATA__;
+      const root = document.getElementById("head-gt-selector-root");
+      const selectPhase = root.querySelector("#gt-select-phase");
+      const labelPhase = root.querySelector("#gt-label-phase");
+      const canvas = root.querySelector("#gt-canvas");
+      const ctx = canvas.getContext("2d");
+      const referenceImage = root.querySelector("#gt-reference-image");
+      const joints = [
+        ["nose","鼻子"], ["left_shoulder","左肩"], ["right_shoulder","右肩"],
+        ["left_elbow","左手肘"], ["right_elbow","右手肘"], ["left_wrist","左手腕"], ["right_wrist","右手腕"],
+        ["left_hip","左髋"], ["right_hip","右髋"], ["left_knee","左膝"], ["right_knee","右膝"],
+        ["left_ankle","左脚踝"], ["right_ankle","右脚踝"], ["left_toe","左脚尖"], ["right_toe","右脚尖"]
+      ];
+      const views = ["CAM_A","CAM_D"];
+      const storageKey = "head-stereo-fullbody-gt-0711-v2-20";
+      let selected = [];
+      let cursor = 0;
+      let activeView = "CAM_A";
+      let phase = "select";
+      let annotations = DATA.samples.map(() => ({CAM_A:[],CAM_D:[]}));
+      let histories = DATA.samples.map(() => []);
+      let currentImage = new Image();
+      const probe = document.createElement("span"); probe.style.display="none"; root.appendChild(probe);
+      const color = name => { probe.style.color=`var(${name})`; return getComputedStyle(probe).color; };
+
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (saved && Array.isArray(saved.annotations) && saved.annotations.length === DATA.samples.length) {
+          annotations = saved.annotations;
+          selected = (saved.selected || []).filter(i => Number.isInteger(i) && i >= 0 && i < DATA.samples.length).slice(0,10);
+          cursor = Math.min(Number(saved.cursor)||0, Math.max(0,selected.length-1));
+          activeView = views.includes(saved.activeView) ? saved.activeView : "CAM_A";
+          phase = saved.phase === "label" && selected.length >= 5 ? "label" : "select";
+        }
+      } catch (_) {}
+
+      function persist() {
+        localStorage.setItem(storageKey, JSON.stringify({selected,cursor,activeView,phase,annotations}));
+        root.querySelector("#gt-save-status").textContent = "已自动保存到当前浏览器";
+      }
+      function sampleIndex() { return selected[cursor]; }
+      function currentMarks() { return annotations[sampleIndex()][activeView]; }
+      function viewComplete(index, view) { return annotations[index][view].length === joints.length; }
+      function sampleComplete(index=sampleIndex()) { return views.every(v => viewComplete(index,v)); }
+      function allComplete() { return selected.length >= 5 && selected.every(i => sampleComplete(i)); }
+
+      function renderSelection() {
+        const grid = root.querySelector("#gt-candidate-grid");
+        grid.innerHTML = DATA.samples.map((sample,index) => `
+          <div class="gt-choice">
+            <div class="gt-choice-head">
+              <label class="form-check"><input class="form-check-input gt-picker" type="checkbox" data-index="${index}" ${selected.includes(index)?"checked":""}> <span>候选 ${index+1} · seq ${sample.aligned_sequence}</span></label>
+              <span class="text-small gt-note">残差 ${sample.external_pose_quality.value_mm_per_frame2.toFixed(2)}</span>
+            </div>
+            <div class="gt-pair"><img src="${sample.views.CAM_A.image_data}" alt="候选 ${index+1} 头部 CAM_A"><img src="${sample.views.CAM_D.image_data}" alt="候选 ${index+1} 头部 CAM_D"></div>
+            <img class="gt-ref-thumb" src="${sample.external_reference.image_data}" alt="候选 ${index+1} 外部双目姿态参考">
+          </div>`).join("");
+        grid.querySelectorAll(".gt-picker").forEach(input => input.addEventListener("change", () => {
+          const index = Number(input.dataset.index);
+          root.querySelector("#gt-select-error").textContent = "";
+          if (input.checked) {
+            if (selected.length >= 10) { input.checked=false; root.querySelector("#gt-select-error").textContent="最多选择 10 帧；请先取消一帧。"; }
+            else if (!selected.includes(index)) selected.push(index);
+          } else selected = selected.filter(i => i !== index);
+          selected.sort((a,b)=>a-b); updateSelectionStatus(); persist();
+        }));
+        updateSelectionStatus();
+      }
+      function updateSelectionStatus() {
+        root.querySelector("#gt-selected-count").textContent = `已选择 ${selected.length}/10`;
+        root.querySelector("#gt-start").disabled = selected.length < 5 || selected.length > 10;
+      }
+      function showPhase(next) {
+        phase=next; selectPhase.style.display=next==="select"?"block":"none"; labelPhase.style.display=next==="label"?"block":"none";
+        if (next==="label") updateUI(); else renderSelection();
+        persist();
+      }
+      function draw() {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        if (!currentImage.complete || !currentImage.naturalWidth) return;
+        ctx.drawImage(currentImage,0,0,canvas.width,canvas.height);
+        currentMarks().forEach((mark,index) => {
+          if (!mark.visible) return;
+          const x=mark.x*canvas.width/1920, y=mark.y*canvas.height/1200;
+          ctx.beginPath(); ctx.arc(x,y,6,0,Math.PI*2); ctx.fillStyle=color("--viz-series-1"); ctx.fill();
+          ctx.fillStyle=color("--primary-foreground"); ctx.font="600 11px sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(String(index+1),x,y);
+        });
+      }
+      function metadataRows(sample,view) {
+        const h=sample.views[view], a=sample.external_reference.views.CAM_A, d=sample.external_reference.views.CAM_D;
+        return [["对齐序号",sample.aligned_sequence],["当前头部视角",view],["头部源帧",h.source_frame],["头部 raw camera seq",h.raw_camera_seq],
+          ["头部 device timestamp (ms)",h.device_ts_ms],["头部曝光开始 (ms)",h.exposure_start_ts_ms],["头部曝光中点 (ms)",h.exposure_middle_ts_ms],
+          ["头部曝光结束 (ms)",h.exposure_end_ts_ms],["头部 host timestamp (ms)",h.host_ts_ms],["外部 A 曝光结束 (μs)",a.exposure_end_device_timestamp_us],
+          ["外部 D 曝光结束 (μs)",d.exposure_end_device_timestamp_us],["Mocap 帧",sample.mocap_frame_index],["Mocap 最近时间差 (ms)",sample.mocap_nearest_dt_ms],
+          ["外部姿态稳定残差 (mm/frame²)",sample.external_pose_quality.value_mm_per_frame2.toFixed(3)]];
+      }
+      function updateUI() {
+        if (!selected.length) return;
+        cursor=Math.min(cursor,selected.length-1);
+        const index=sampleIndex(), sample=DATA.samples[index], marks=currentMarks();
+        root.querySelector("#gt-sample-status").textContent=`所选 ${cursor+1}/${selected.length} · 候选 ${index+1} · seq ${sample.aligned_sequence}`;
+        root.querySelector("#gt-progress-status").textContent=`${activeView} ${marks.length}/${joints.length}`;
+        root.querySelector("#gt-next-joint").textContent=marks.length<joints.length?`${marks.length+1}. ${joints[marks.length][1]}`:`${activeView} 已完成`;
+        root.querySelector("#gt-view-exposure").textContent=`曝光结束 ${sample.views[activeView].exposure_end_ts_ms.toFixed(3)} ms`;
+        root.querySelector("#gt-tab-a").setAttribute("aria-pressed",String(activeView==="CAM_A")); root.querySelector("#gt-tab-d").setAttribute("aria-pressed",String(activeView==="CAM_D"));
+        root.querySelector("#gt-next-frame").disabled=!sampleComplete(); root.querySelector("#gt-next-frame").textContent=cursor===selected.length-1?"完成":"下一张";
+        root.querySelector("#gt-invisible").disabled=marks.length>=joints.length; root.querySelector("#gt-complete-message").style.display=allComplete()?"block":"none";
+        root.querySelector("#gt-meta-body").innerHTML=metadataRows(sample,activeView).map(([k,v])=>`<tr><th>${k}</th><td class="text-end">${v}</td></tr>`).join("");
+        referenceImage.src=sample.external_reference.image_data; currentImage=new Image(); currentImage.onload=draw; currentImage.src=sample.views[activeView].image_data; persist();
+      }
+      function addMark(mark) {
+        const marks=currentMarks(); if (marks.length>=joints.length) return;
+        marks.push({joint:joints[marks.length][0],...mark}); histories[sampleIndex()].push({view:activeView});
+        if (marks.length===joints.length && activeView==="CAM_A" && !viewComplete(sampleIndex(),"CAM_D")) activeView="CAM_D";
+        updateUI();
+      }
+      function undo() {
+        if (phase!=="label" || !selected.length) return;
+        const entry=histories[sampleIndex()].pop(); if (!entry) return;
+        activeView=entry.view; annotations[sampleIndex()][activeView].pop(); updateUI();
+      }
+      canvas.addEventListener("click", event => {
+        if (currentMarks().length>=joints.length) return;
+        const r=canvas.getBoundingClientRect(); const x=Math.max(0,Math.min(1919,(event.clientX-r.left)/r.width*1920)); const y=Math.max(0,Math.min(1199,(event.clientY-r.top)/r.height*1200));
+        addMark({x:Number(x.toFixed(2)),y:Number(y.toFixed(2)),visible:true});
+      });
+      root.querySelector("#gt-start").addEventListener("click",()=>{ if(selected.length>=5&&selected.length<=10){cursor=Math.min(cursor,selected.length-1);showPhase("label");} });
+      root.querySelector("#gt-back-select").addEventListener("click",()=>showPhase("select"));
+      root.querySelector("#gt-tab-a").addEventListener("click",()=>{activeView="CAM_A";updateUI();}); root.querySelector("#gt-tab-d").addEventListener("click",()=>{activeView="CAM_D";updateUI();});
+      root.querySelector("#gt-invisible").addEventListener("click",()=>addMark({x:null,y:null,visible:false})); root.querySelector("#gt-undo").addEventListener("click",undo);
+      root.querySelector("#gt-next-frame").addEventListener("click",()=>{if(!sampleComplete())return;if(cursor<selected.length-1){cursor++;activeView="CAM_A";updateUI();}else root.querySelector("#gt-complete-message").style.display="block";});
+      window.addEventListener("keydown",event=>{if(event.key.toLowerCase()==="z"&&!event.ctrlKey&&!event.metaKey&&phase==="label"){event.preventDefault();undo();}});
+      function payload() {
+        return {schema:"0711.head_stereo_fullbody_manual_2d_gt.v2",source:DATA.source_root,original_image_size:[1920,1200],joint_order:joints.map(j=>j[0]),
+          candidate_count:DATA.samples.length,selected_candidate_indices:selected.map(i=>i+1),exported_at:new Date().toISOString(),complete:allComplete(),
+          samples:selected.map(index=>({...DATA.samples[index],candidate_index:index+1,annotations:annotations[index]}))};
+      }
+      function download(name,text,type) { const blob=new Blob([text],{type}); const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+      root.querySelector("#gt-export-json").addEventListener("click",()=>download("head_stereo_fullbody_2d_gt.json",JSON.stringify(payload(),null,2),"application/json"));
+      root.querySelector("#gt-export-csv").addEventListener("click",()=>{
+        const rows=[["candidate_index","aligned_sequence","camera","joint","visible","x_px","y_px","exposure_start_ts_ms","exposure_middle_ts_ms","exposure_end_ts_ms","device_ts_ms","host_ts_ms","source_frame","mocap_frame_index","mocap_nearest_dt_ms"]];
+        selected.forEach(index=>{const s=DATA.samples[index];views.forEach(v=>annotations[index][v].forEach(m=>rows.push([index+1,s.aligned_sequence,v,m.joint,m.visible,m.x??"",m.y??"",s.views[v].exposure_start_ts_ms,s.views[v].exposure_middle_ts_ms,s.views[v].exposure_end_ts_ms,s.views[v].device_ts_ms,s.views[v].host_ts_ms,s.views[v].source_frame,s.mocap_frame_index,s.mocap_nearest_dt_ms])))});
+        download("head_stereo_fullbody_2d_gt.csv",rows.map(r=>r.join(",")).join("\n"),"text/csv");
+      });
+      renderSelection(); showPhase(phase);
+    })();
+  </script>
+</div>

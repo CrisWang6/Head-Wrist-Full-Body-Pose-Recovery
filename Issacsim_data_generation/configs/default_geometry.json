@@ -1,0 +1,23 @@
+{
+  "schema": "geosim.default_geometry.v1",
+  "camera_rig": {
+    "image_width": 1920,
+    "image_height": 1080,
+    "fps": 30.0,
+    "fisheye_fov_deg": 220.0,
+    "rectangle_length_m": 0.44,
+    "rectangle_width_m": 0.20,
+    "camera_names": ["CAM_A", "CAM_B", "CAM_C", "CAM_D"]
+  },
+  "tag_rig": {
+    "tag_size_m": 0.08,
+    "tag_sizes_to_test_m": [0.03, 0.05, 0.08, 0.10],
+    "dihedral_angle_deg": 45.0,
+    "wrist_to_hinge_offset_m": [0.0, 0.0, 0.0]
+  },
+  "simulation": {
+    "pixel_noise_std": 0.0,
+    "min_views_per_corner": 2,
+    "max_frames": 0
+  }
+}

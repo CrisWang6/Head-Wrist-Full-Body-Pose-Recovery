@@ -1,0 +1,24 @@
+{
+  "label_root": "data/labels/S2_Walking_3_stageii",
+  "image_size": [456, 256],
+  "heatmap_size": [114, 64],
+  "num_views": 8,
+  "projection_model": "fisheye_equidistant",
+  "fisheye_fov_deg": 220.0,
+  "num_head_heatmaps": 16,
+  "num_wrist_heatmaps": 7,
+  "head_camera_joints": [
+    "Head", "Neck", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm",
+    "LeftHand", "RightHand", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg",
+    "LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"
+  ],
+  "wrist_camera_joints": [
+    "L_Ankle", "R_Ankle", "L_Knee", "R_Knee", "L_Hip", "R_Hip", "Spine1"
+  ],
+  "loss": "head_wrist_masked_mse",
+  "dataset_filter": {
+    "exclude_actions": ["Box", "ThrowCatch"],
+    "appearances_per_motion": 2
+  },
+  "stage1_model": "separate_resnet18_style_head_wrist_branches"
+}

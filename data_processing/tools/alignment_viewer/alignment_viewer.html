@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IMU Mocap Checkbox Alignment Viewer</title>
+  <script src="./alignment_data.js?v=lag-trend-fix-1"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101210;
+      --surface: #191c19;
+      --surface-2: #202420;
+      --text: #f0f3ef;
+      --muted: #a9b0a8;
+      --border: #3b423b;
+      --green: #72d49a;
+      --orange: #ffad66;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; }
+    body { overflow: hidden; }
+    button, select, input { font: inherit; }
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) 32vh;
+      gap: 10px;
+      padding: 10px;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-height: 42px;
+    }
+    button, select {
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+    }
+    button.primary { color: #07140c; background: var(--green); border-color: var(--green); font-weight: 600; }
+    label { color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+    input[type="range"] { accent-color: var(--green); }
+    .timeline { flex: 1 1 340px; min-width: 220px; }
+    .readout { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 10px; }
+    .stage, .sidebar, .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .stage { position: relative; min-height: 0; overflow: hidden; }
+    #skeleton { width: 100%; height: 100%; display: block; }
+    .hud {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      display: grid;
+      gap: 4px;
+      padding: 7px 9px;
+      color: var(--text);
+      background: rgba(16, 18, 16, .82);
+      border-radius: 6px;
+      font-size: 13px;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .hud .muted { color: var(--muted); }
+    .sidebar { min-height: 0; overflow: auto; padding: 10px; }
+    .align-info { color: var(--muted); font-size: 13px; line-height: 1.5; margin-bottom: 12px; }
+    .group-title { margin: 12px 0 6px; color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .group-title:first-child { margin-top: 0; }
+    .legend-row { display: grid; grid-template-columns: minmax(0, 1fr) 58px; gap: 8px; align-items: center; min-height: 28px; }
+    .legend-row label { color: var(--text); min-width: 0; }
+    .series-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .swatch { width: 20px; height: 3px; display: inline-block; flex: 0 0 auto; }
+    .series-value { color: var(--muted); text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .chart-wrap { min-height: 0; padding: 8px 10px 6px; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .chart-head { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 13px; padding: 0 2px 5px; }
+    #chart { width: 100%; height: 100%; min-height: 160px; display: block; }
+    .gridline { stroke: var(--border); stroke-width: 1; }
+    .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 5; opacity: .55; }
+    .axis-label { fill: var(--muted); font-size: 12px; }
+    .curve { fill: none; stroke-width: 1.8; }
+    .cursor { stroke: var(--text); stroke-width: 1.5; }
+    @media (max-width: 920px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100vh; grid-template-rows: auto 58vh auto 38vh; }
+      .main { grid-template-columns: 1fr; }
+      .sidebar { max-height: 38vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="toolbar">
+      <button id="play" class="primary" type="button">播放</button>
+      <label>速度
+        <select id="speed">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+        </select>
+      </label>
+      <label>滑窗
+        <select id="windowSec">
+          <option value="4">4s</option>
+          <option value="8" selected>8s</option>
+          <option value="12">12s</option>
+          <option value="20">20s</option>
+        </select>
+      </label>
+      <label>骨架视角
+        <input id="yaw" type="range" min="-180" max="180" value="-25">
+      </label>
+      <input id="timeline" class="timeline" type="range" min="0" step="0.001" value="0" aria-label="预览时间">
+      <span id="readout" class="readout"></span>
+    </div>
+
+    <div class="main">
+      <section class="stage" aria-label="动捕骨架">
+        <canvas id="skeleton"></canvas>
+        <div class="hud">
+          <div id="poseInfo"></div>
+          <div class="muted">绿色为左腕，橙色为右腕</div>
+        </div>
+      </section>
+      <aside class="sidebar">
+        <div id="alignInfo" class="align-info"></div>
+        <div id="legend"></div>
+      </aside>
+    </div>
+
+    <section class="chart-wrap" aria-label="腕部角速度滑窗">
+      <div class="chart-head">
+        <span>IMU / mocap 腕部角速度 · rad/s</span>
+        <span id="chartInfo"></span>
+      </div>
+      <svg id="chart" role="img" aria-label="可选角速度曲线滑窗"></svg>
+    </section>
+  </main>
+
+  <script>
+    const data = window.ALIGN_VIEWER_DATA;
+    if (!data || !data.rows) throw new Error('alignment_data.js 没有有效数据');
+
+    const canvas = document.getElementById('skeleton');
+    const context = canvas.getContext('2d');
+    const chart = document.getElementById('chart');
+    const playButton = document.getElementById('play');
+    const speedSelect = document.getElementById('speed');
+    const windowSelect = document.getElementById('windowSec');
+    const yawInput = document.getElementById('yaw');
+    const timelineInput = document.getElementById('timeline');
+    const readout = document.getElementById('readout');
+    const poseInfo = document.getElementById('poseInfo');
+    const chartInfo = document.getElementById('chartInfo');
+    const duration = data.timelineSec[data.timelineSec.length - 1];
+    const colors = [
+      '#72d49a', '#ffad66', '#ff7a7a', '#78b7ff', '#d49aff', '#e7ca62', '#51c4c2',
+      '#f18fbe', '#9fd36f', '#b5a6ff', '#ff986f', '#8ad2ff', '#d8dc83', '#df92c8',
+      '#79c7a0', '#efb178', '#9ab7ff', '#c7a0df', '#f08e8e', '#70cbd0', '#d1c276',
+    ];
+
+    const selected = new Set(data.series.filter(series => series.defaultVisible).map(series => series.key));
+    const jointIndex = Object.fromEntries(data.joints.map((name, index) => [name, index]));
+    const edges = data.edges.map(([a, b]) => [jointIndex[a], jointIndex[b]]).filter(([a, b]) => a != null && b != null);
+    let playhead = 0;
+    let frame = 0;
+    let playing = false;
+    let lastAnimationTime = 0;
+
+    timelineInput.max = String(duration);
+    document.getElementById('alignInfo').innerHTML = [
+      `<b>新全局对齐</b>`,
+      `scale ${data.alignment.globalScale.toFixed(7)}`,
+      `offset ${data.alignment.globalOffsetSec.toFixed(3)}s`,
+      `global corr ${data.alignment.globalVectorCorr.toFixed(3)}`,
+      `cross validation ${data.alignment.crossValidationCorr.toFixed(3)}`,
+      `local lag P90 ${data.alignment.localLagP90Ms.toFixed(0)}ms`,
+    ].join('<br>');
+
+    const legend = document.getElementById('legend');
+    let currentGroup = '';
+    let legendMarkup = '';
+    data.series.forEach((series, index) => {
+      if (series.group !== currentGroup) {
+        currentGroup = series.group;
+        legendMarkup += `<div class="group-title">${currentGroup}</div>`;
+      }
+      legendMarkup += `<div class="legend-row">
+        <label>
+          <input class="series-toggle" type="checkbox" data-series="${series.key}" ${series.defaultVisible ? 'checked' : ''}>
+          <span class="swatch" style="background:${colors[index % colors.length]}"></span>
+          <span class="series-label">${series.label}</span>
+        </label>
+        <span id="value_${series.key}" class="series-value">-</span>
+      </div>`;
+    });
+    legend.innerHTML = legendMarkup;
+    document.querySelectorAll('.series-toggle').forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) selected.add(checkbox.dataset.series);
+        else selected.delete(checkbox.dataset.series);
+        drawChart();
+      });
+    });
+
+    function indexForTime(time) {
+      let low = 0;
+      let high = data.timelineSec.length - 1;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (data.timelineSec[mid] <= time) low = mid;
+        else high = mid - 1;
+      }
+      return low;
+    }
+
+    function fitCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.floor(rect.width * dpr));
+      const height = Math.max(1, Math.floor(rect.height * dpr));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return rect;
+    }
+
+    function posePoint(pose, index) {
+      const offset = index * 3;
+      const x = pose[offset];
+      const y = pose[offset + 1];
+      const z = pose[offset + 2];
+      return x == null || y == null || z == null ? null : { x, y, z };
+    }
+
+    function project(point, center, scale, yaw, pitch, rect) {
+      const x = point.x - center.x;
+      const y = point.y - center.y;
+      const z = point.z - center.z;
+      const cy = Math.cos(yaw);
+      const sy = Math.sin(yaw);
+      const cp = Math.cos(pitch);
+      const sp = Math.sin(pitch);
+      const rx = x * cy - z * sy;
+      const rz = x * sy + z * cy;
+      const ry = y * cp - rz * sp;
+      return { x: rect.width * 0.5 + rx * scale, y: rect.height * 0.53 - ry * scale };
+    }
+
+    function drawSkeleton() {
+      const rect = fitCanvas();
+      context.fillStyle = '#191c19';
+      context.fillRect(0, 0, rect.width, rect.height);
+      const pose = data.frames[frame];
+      const center = {
+        x: (data.bounds.min_x + data.bounds.max_x) / 2,
+        y: (data.bounds.min_y + data.bounds.max_y) / 2,
+        z: (data.bounds.min_z + data.bounds.max_z) / 2,
+      };
+      const span = Math.max(
+        data.bounds.max_x - data.bounds.min_x,
+        data.bounds.max_y - data.bounds.min_y,
+        data.bounds.max_z - data.bounds.min_z,
+      );
+      const scale = Math.min(rect.width, rect.height) * 1.44 / Math.max(span, 1);
+      const yaw = Number(yawInput.value) * Math.PI / 180;
+      const pitch = -12 * Math.PI / 180;
+      const points = data.joints.map((_, index) => {
+        const point = posePoint(pose, index);
+        return point ? project(point, center, scale, yaw, pitch, rect) : null;
+      });
+
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.strokeStyle = 'rgba(240, 243, 239, .78)';
+      context.lineWidth = 4;
+      for (const [a, b] of edges) {
+        if (!points[a] || !points[b]) continue;
+        context.beginPath();
+        context.moveTo(points[a].x, points[a].y);
+        context.lineTo(points[b].x, points[b].y);
+        context.stroke();
+      }
+      points.forEach((point, index) => {
+        if (!point) return;
+        const name = data.joints[index];
+        context.fillStyle = name === 'LeftHand' ? '#72d49a' : name === 'RightHand' ? '#ffad66' : '#f0f3ef';
+        context.beginPath();
+        context.arc(point.x, point.y, name.includes('Hand') ? 7 : 4.5, 0, Math.PI * 2);
+        context.fill();
+      });
+    }
+
+    function makePath(values, start, end, xOf, yOf) {
+      let path = '';
+      let open = false;
+      for (let index = start; index <= end; index += 1) {
+        const value = values[index];
+        if (value == null || !Number.isFinite(value)) {
+          open = false;
+          continue;
+        }
+        path += `${open ? 'L' : 'M'}${xOf(index).toFixed(1)},${yOf(value).toFixed(1)}`;
+        open = true;
+      }
+      return path;
+    }
+
+    function drawChart() {
+      const rect = chart.getBoundingClientRect();
+      const width = Math.max(320, rect.width || 320);
+      const height = Math.max(160, rect.height || 160);
+      const windowWidth = Number(windowSelect.value);
+      const startTime = Math.max(0, playhead - windowWidth / 2);
+      const endTime = Math.min(duration, playhead + windowWidth / 2);
+      const start = indexForTime(startTime);
+      const end = Math.min(data.rows - 1, indexForTime(endTime) + 1);
+      const visible = data.series.filter(series => selected.has(series.key));
+      const chartValues = [];
+      for (const series of visible) {
+        for (let index = start; index <= end; index += 1) {
+          const value = series.values[index];
+          if (value != null && Number.isFinite(value)) chartValues.push(value);
+        }
+      }
+      const maxAbs = Math.max(0.2, ...chartValues.map(value => Math.abs(value)));
+      const padding = { left: 44, right: 16, top: 12, bottom: 24 };
+      const xOf = index => padding.left + (data.timelineSec[index] - startTime) / Math.max(.001, endTime - startTime) * (width - padding.left - padding.right);
+      const yOf = value => padding.top + (maxAbs - value) / (2 * maxAbs) * (height - padding.top - padding.bottom);
+      let markup = `<line class="gridline" x1="${padding.left}" y1="${padding.top}" x2="${padding.left}" y2="${height - padding.bottom}"></line>`;
+      for (let grid = -1; grid <= 1; grid += 1) {
+        const y = yOf(grid * maxAbs);
+        markup += `<line class="${grid === 0 ? 'zero' : 'gridline'}" x1="${padding.left}" y1="${y}" x2="${width - padding.right}" y2="${y}"></line>`;
+        markup += `<text class="axis-label" x="4" y="${y + 4}">${(grid * maxAbs).toFixed(1)}</text>`;
+      }
+      data.series.forEach((series, index) => {
+        if (selected.has(series.key)) {
+          markup += `<path class="curve" style="stroke:${colors[index % colors.length]}" d="${makePath(series.values, start, end, xOf, yOf)}"></path>`;
+        }
+        const valueElement = document.getElementById(`value_${series.key}`);
+        const value = series.values[frame];
+        if (valueElement) valueElement.textContent = value == null ? '-' : Number(value).toFixed(3);
+      });
+      const cursorX = xOf(frame);
+      markup += `<line class="cursor" x1="${cursorX}" y1="${padding.top}" x2="${cursorX}" y2="${height - padding.bottom}"></line>`;
+      markup += `<text class="axis-label" x="${padding.left}" y="${height - 5}">${startTime.toFixed(1)}s</text>`;
+      markup += `<text class="axis-label" text-anchor="end" x="${width - padding.right}" y="${height - 5}">${endTime.toFixed(1)}s</text>`;
+      chart.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      chart.innerHTML = markup;
+      chartInfo.textContent = `${startTime.toFixed(2)} - ${endTime.toFixed(2)}s · ${visible.length} 条曲线`;
+    }
+
+    function render() {
+      frame = indexForTime(playhead);
+      timelineInput.value = String(playhead);
+      readout.textContent = `${playhead.toFixed(3)} / ${duration.toFixed(3)} s`;
+      poseInfo.textContent = `aligned seq ${data.seq[frame]} · mocap ${data.mocapTime[frame].toFixed(3)}s`;
+      drawSkeleton();
+      drawChart();
+    }
+
+    function animationLoop(now) {
+      if (playing) {
+        if (!lastAnimationTime) lastAnimationTime = now;
+        playhead += (now - lastAnimationTime) / 1000 * Number(speedSelect.value);
+        lastAnimationTime = now;
+        if (playhead >= duration) {
+          playhead = duration;
+          playing = false;
+          playButton.textContent = '播放';
+        }
+        render();
+      }
+      requestAnimationFrame(animationLoop);
+    }
+
+    playButton.addEventListener('click', () => {
+      if (!playing && playhead >= duration) playhead = 0;
+      playing = !playing;
+      lastAnimationTime = 0;
+      playButton.textContent = playing ? '暂停' : '播放';
+      render();
+    });
+    timelineInput.addEventListener('input', () => {
+      playhead = Number(timelineInput.value);
+      playing = false;
+      playButton.textContent = '播放';
+      lastAnimationTime = 0;
+      render();
+    });
+    windowSelect.addEventListener('change', drawChart);
+    yawInput.addEventListener('input', drawSkeleton);
+    window.addEventListener('resize', render);
+
+    render();
+    requestAnimationFrame(animationLoop);
+  </script>
+</body>
+</html>

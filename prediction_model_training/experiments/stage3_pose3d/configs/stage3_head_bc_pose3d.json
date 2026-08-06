@@ -1,0 +1,41 @@
+{
+  "description": "CAM_B/C stage-3 3D lifting with stereo-lifted shoulder/elbow supervision",
+  "inputs": [
+    "normalized CAM_B/C RGB images",
+    "stage-2 refined 12-joint heatmaps",
+    "stage-2 refined spatial features"
+  ],
+  "output": "12 joints in the mocap Head coordinate frame, meters",
+  "architecture_reference": "Official EgoRear EgoPoseFormerPose3D: MLP proposal plus joint-transformer residual refinement",
+  "joint_names": [
+    "LeftFoot",
+    "RightFoot",
+    "LeftUpLeg",
+    "RightUpLeg",
+    "LeftArm",
+    "RightArm",
+    "Spine",
+    "Spine2",
+    "LeftForeArm",
+    "RightForeArm",
+    "LeftHand",
+    "RightHand"
+  ],
+  "stereo_lifted_supervision_joints": [
+    "LeftArm",
+    "RightArm",
+    "LeftForeArm",
+    "RightForeArm"
+  ],
+  "supervision_filter": "Require all four stereo-lifted joints valid; never silently fall back to original mocap for those joints",
+  "coordinate_transform": "p_head = R_world_from_head^T @ (p_world - p_head_world)",
+  "train": {
+    "epochs": 12,
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0005,
+    "train_ratio": 0.8,
+    "split_mode": "chronological",
+    "early_stop_patience": 3
+  }
+}

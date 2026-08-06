@@ -1,0 +1,86 @@
+<div id="head-fivepoint-viewer">
+  <style>
+    #head-fivepoint-viewer { width: 100%; color: var(--foreground); font: 13px/1.4 var(--font-sans); }
+    #head-fivepoint-viewer .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+    #head-fivepoint-viewer .form-range { flex: 1 1 280px; }
+    #head-fivepoint-viewer .stage { position: relative; height: 440px; overflow: hidden; }
+    #head-fivepoint-viewer canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+    #head-fivepoint-viewer canvas:active { cursor: grabbing; }
+    #head-fivepoint-viewer .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; color: var(--muted-foreground); }
+    #head-fivepoint-viewer .key { display: inline-flex; align-items: center; gap: 6px; }
+    #head-fivepoint-viewer .swatch { width: 18px; height: 3px; background: var(--swatch); }
+    @media (max-width: 520px) { #head-fivepoint-viewer .stage { height: 360px; } }
+  </style>
+  <div class="controls viz-controls">
+    <button type="button" class="btn" id="hfv-play">播放</button>
+    <label class="form-label" for="hfv-frame">帧 <span id="hfv-value">0</span>
+      <input class="form-range" id="hfv-frame" type="range" min="0" value="0" step="1">
+    </label>
+    <button type="button" class="btn" id="hfv-reset">重置视角</button>
+  </div>
+  <div class="stage">
+    <canvas id="hfv-canvas" role="img" aria-label="未优化、全局修正和逐帧自适应三种三维骨架的同步可旋转比较"></canvas>
+  </div>
+  <div class="legend">
+    <span class="key"><span class="swatch" style="--swatch:var(--viz-series-1)"></span>未优化</span>
+    <span class="key"><span class="swatch" style="--swatch:var(--viz-series-2)"></span>高质量帧全局修正</span>
+    <span class="key"><span class="swatch" style="--swatch:var(--viz-series-3)"></span>逐帧自适应（已强滤波）</span>
+    <span class="key"><span class="swatch" style="--swatch:var(--viz-series-4)"></span>头部双目 GT</span>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('head-fivepoint-viewer');
+      const canvas = document.getElementById('hfv-canvas');
+      const ctx = canvas.getContext('2d');
+      const slider = document.getElementById('hfv-frame');
+      const value = document.getElementById('hfv-value');
+      const play = document.getElementById('hfv-play');
+      const reset = document.getElementById('hfv-reset');
+      const data = __DATA__;
+      slider.max = String(data.frames.length - 1);
+      let yaw = -0.65, pitch = -0.15, zoom = 1, dragging = false, lastX = 0, lastY = 0, timer = null;
+      const css = name => getComputedStyle(root).getPropertyValue(name).trim();
+      const series = () => [css('--viz-series-1'), css('--viz-series-2'), css('--viz-series-3'), css('--viz-series-4')];
+      const rotate = p => {
+        const cy=Math.cos(yaw), sy=Math.sin(yaw), cp=Math.cos(pitch), sp=Math.sin(pitch);
+        const x=cy*p[0]+sy*p[2], z=-sy*p[0]+cy*p[2];
+        return [x, cp*p[1]-sp*z, sp*p[1]+cp*z];
+      };
+      const allPoints = frame => ['before','after','adaptive'].flatMap(k => frame[k].filter(Boolean));
+      function render() {
+        const rect=canvas.getBoundingClientRect(), dpr=Math.max(1,window.devicePixelRatio||1);
+        canvas.width=Math.round(rect.width*dpr); canvas.height=Math.round(rect.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0);
+        ctx.clearRect(0,0,rect.width,rect.height);
+        const frame=data.frames[Number(slider.value)], colors=series(), panels=['before','after','adaptive'];
+        const labels=['未优化','全局修正','逐帧自适应'];
+        const pts=allPoints(frame), center=[0,0,0];
+        pts.forEach(p=>{center[0]+=p[0];center[1]+=p[1];center[2]+=p[2];}); center.forEach((_,i)=>center[i]/=Math.max(1,pts.length));
+        let extent=.35; pts.forEach(p=>{const q=rotate([p[0]-center[0],p[1]-center[1],p[2]-center[2]]);extent=Math.max(extent,Math.abs(q[0]),Math.abs(q[1]));});
+        const panelW=rect.width/3, scale=Math.min(panelW*.40,rect.height*.40)/extent*zoom;
+        panels.forEach((key,pi)=>{
+          const ox=panelW*(pi+.5), oy=rect.height*.52, points=frame[key];
+          ctx.save();ctx.beginPath();ctx.rect(pi*panelW,0,panelW,rect.height);ctx.clip();
+          if(pi>0){ctx.strokeStyle=css('--border');ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pi*panelW,0);ctx.lineTo(pi*panelW,rect.height);ctx.stroke();}
+          ctx.fillStyle=css('--foreground');ctx.font='500 13px sans-serif';ctx.textAlign='center';ctx.fillText(labels[pi],ox,20);
+          ctx.fillStyle=css('--muted-foreground');ctx.font='400 11px sans-serif';ctx.fillText(`seq ${frame.sequence} · ${frame.valid_gt} 个肩肘 GT`,ox,38);
+          const proj=p=>{const q=rotate([p[0]-center[0],p[1]-center[1],p[2]-center[2]]);return [ox+q[0]*scale,oy-q[1]*scale,q[2]];};
+          ctx.strokeStyle=colors[pi];ctx.fillStyle=colors[pi];ctx.lineWidth=2;
+          data.bones.forEach(([a,b])=>{if(!points[a]||!points[b])return;const A=proj(points[a]),B=proj(points[b]);ctx.beginPath();ctx.moveTo(A[0],A[1]);ctx.lineTo(B[0],B[1]);ctx.stroke();});
+          points.forEach(p=>{if(!p)return;const q=proj(p);ctx.beginPath();ctx.arc(q[0],q[1],3,0,Math.PI*2);ctx.fill();});
+          if(pi>0){ctx.fillStyle=colors[3];Object.values(frame.targets).forEach(p=>{const q=proj(p);ctx.beginPath();ctx.arc(q[0],q[1],5,0,Math.PI*2);ctx.fill();});}
+          ctx.restore();
+        });
+        value.textContent=`${frame.sequence} / ${data.frames[data.frames.length-1].sequence}`;
+      }
+      function stop(){if(timer!==null){clearInterval(timer);timer=null;play.textContent='播放';}}
+      play.addEventListener('click',()=>{if(timer!==null){stop();return;}play.textContent='暂停';timer=setInterval(()=>{let n=Number(slider.value)+1;if(n>Number(slider.max))n=0;slider.value=String(n);render();},20);});
+      slider.addEventListener('input',()=>{stop();render();});
+      reset.addEventListener('click',()=>{yaw=-.65;pitch=-.15;zoom=1;render();});
+      canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.setPointerCapture(e.pointerId);});
+      canvas.addEventListener('pointermove',e=>{if(!dragging)return;yaw+=(e.clientX-lastX)*.008;pitch=Math.max(-1.45,Math.min(1.45,pitch+(e.clientY-lastY)*.008));lastX=e.clientX;lastY=e.clientY;render();});
+      canvas.addEventListener('pointerup',()=>{dragging=false;});
+      canvas.addEventListener('wheel',e=>{e.preventDefault();zoom=Math.max(.45,Math.min(2.5,zoom*Math.exp(-e.deltaY*.001)));render();},{passive:false});
+      new ResizeObserver(render).observe(canvas);render();
+    })();
+  </script>
+</div>

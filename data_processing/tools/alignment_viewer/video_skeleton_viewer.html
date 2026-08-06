@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>60s Camera Mocap Alignment Preview</title>
+  <script src="./video_skeleton_data.js?v=lag-trend-fix-1"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101210;
+      --surface: #191c19;
+      --surface-2: #202420;
+      --text: #f0f3ef;
+      --muted: #a9b0a8;
+      --border: #3b423b;
+      --green: #72d49a;
+      --orange: #ffad66;
+      --danger: #ff7a7a;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+    body { overflow: hidden; }
+    button, select, input { font: inherit; }
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-height: 42px;
+    }
+    button, select {
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 7px 11px;
+    }
+    button.primary {
+      color: #07140c;
+      background: var(--green);
+      border-color: var(--green);
+      font-weight: 600;
+    }
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+    input[type="range"] { accent-color: var(--green); }
+    .timeline { flex: 1 1 360px; min-width: 240px; }
+    .readout { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .main {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr);
+      gap: 10px;
+    }
+    .panel {
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .hud {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      max-width: calc(100% - 24px);
+      display: grid;
+      gap: 4px;
+      padding: 7px 9px;
+      color: var(--text);
+      background: rgba(16, 18, 16, .82);
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.35;
+      pointer-events: none;
+      font-variant-numeric: tabular-nums;
+    }
+    .hud .muted { color: var(--muted); }
+    .hud .good { color: var(--green); }
+    .hud .warn { color: var(--orange); }
+    @media (max-width: 980px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100vh; }
+      .main { grid-template-columns: 1fr; grid-auto-rows: 52vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <div class="toolbar">
+      <button id="play" class="primary" type="button">播放</button>
+      <label>速度
+        <select id="speed">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="1" selected>1x</option>
+          <option value="2">2x</option>
+        </select>
+      </label>
+      <label>骨架视角
+        <input id="yaw" type="range" min="-180" max="180" value="-25">
+      </label>
+      <input id="timeline" class="timeline" type="range" min="0" step="0.001" value="0" aria-label="预览时间">
+      <span id="readout" class="readout"></span>
+    </div>
+
+    <div class="main">
+      <section class="panel" aria-label="module01 CAM_B 视频">
+        <canvas id="videoCanvas"></canvas>
+        <div class="hud">
+          <div id="videoLabel"></div>
+          <div id="videoInfo" class="muted"></div>
+        </div>
+      </section>
+      <section class="panel" aria-label="动捕骨架">
+        <canvas id="skeleton"></canvas>
+        <div class="hud">
+          <div id="poseInfo"></div>
+          <div id="alignmentInfo" class="good"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const data = window.VIDEO_SKELETON_DATA;
+    if (!data || !data.rows) throw new Error('video_skeleton_data.js 没有有效数据');
+
+    const videoCanvas = document.getElementById('videoCanvas');
+    const videoCtx = videoCanvas.getContext('2d');
+    const skeletonCanvas = document.getElementById('skeleton');
+    const skeletonCtx = skeletonCanvas.getContext('2d');
+    const playButton = document.getElementById('play');
+    const speedSelect = document.getElementById('speed');
+    const yawInput = document.getElementById('yaw');
+    const timelineInput = document.getElementById('timeline');
+    const readout = document.getElementById('readout');
+    const videoInfo = document.getElementById('videoInfo');
+    const poseInfo = document.getElementById('poseInfo');
+    const imageCache = new Map();
+
+    const duration = data.timelineSec[data.timelineSec.length - 1];
+    let playhead = 0;
+    let frame = 0;
+    let playing = false;
+    let lastAnimationTime = 0;
+
+    timelineInput.max = String(duration);
+    document.getElementById('videoLabel').textContent = `${data.videoLabel} · 实际曝光时间轴`;
+    document.getElementById('alignmentInfo').textContent =
+      `scale ${data.alignment.globalScale.toFixed(7)} · offset ${data.alignment.globalOffsetSec.toFixed(3)}s · corr ${data.alignment.globalVectorCorr.toFixed(3)}`;
+
+    const jointIndex = Object.fromEntries(data.joints.map((name, index) => [name, index]));
+    const edges = data.edges
+      .map(([a, b]) => [jointIndex[a], jointIndex[b]])
+      .filter(([a, b]) => a != null && b != null);
+
+    function indexForTime(time) {
+      let low = 0;
+      let high = data.timelineSec.length - 1;
+      while (low < high) {
+        const mid = Math.ceil((low + high) / 2);
+        if (data.timelineSec[mid] <= time) low = mid;
+        else high = mid - 1;
+      }
+      return low;
+    }
+
+    function frameUrl(index) {
+      return `./aligned_cam_b_frames/frame_${String(index).padStart(4, '0')}.jpg?v=vps-clock-fix-1`;
+    }
+
+    function frameImage(index) {
+      if (imageCache.has(index)) return imageCache.get(index);
+      const image = new Image();
+      image.src = frameUrl(index);
+      imageCache.set(index, image);
+      return image;
+    }
+
+    function warmImages(center) {
+      for (let i = center; i < Math.min(data.rows, center + 90); i += 1) frameImage(i);
+      for (const key of imageCache.keys()) {
+        if (Math.abs(key - center) > 180) imageCache.delete(key);
+      }
+    }
+
+    function fitCanvas(canvas, context) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.floor(rect.width * dpr));
+      const height = Math.max(1, Math.floor(rect.height * dpr));
+      if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+      }
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return rect;
+    }
+
+    function drawVideo() {
+      const rect = fitCanvas(videoCanvas, videoCtx);
+      videoCtx.fillStyle = '#080a08';
+      videoCtx.fillRect(0, 0, rect.width, rect.height);
+      const image = frameImage(frame);
+      if (!image.complete || !image.naturalWidth) {
+        image.onload = drawVideo;
+        return;
+      }
+      const scale = Math.min(rect.width / image.naturalWidth, rect.height / image.naturalHeight);
+      const width = image.naturalWidth * scale;
+      const height = image.naturalHeight * scale;
+      videoCtx.drawImage(image, (rect.width - width) / 2, (rect.height - height) / 2, width, height);
+      warmImages(frame);
+    }
+
+    function posePoint(pose, index) {
+      const offset = index * 3;
+      const x = pose[offset];
+      const y = pose[offset + 1];
+      const z = pose[offset + 2];
+      return x == null || y == null || z == null ? null : { x, y, z };
+    }
+
+    function project(point, center, scale, yaw, pitch, rect) {
+      const x = point.x - center.x;
+      const y = point.y - center.y;
+      const z = point.z - center.z;
+      const cy = Math.cos(yaw);
+      const sy = Math.sin(yaw);
+      const cp = Math.cos(pitch);
+      const sp = Math.sin(pitch);
+      const rx = x * cy - z * sy;
+      const rz = x * sy + z * cy;
+      const ry = y * cp - rz * sp;
+      return { x: rect.width * 0.5 + rx * scale, y: rect.height * 0.53 - ry * scale };
+    }
+
+    function drawSkeleton() {
+      const rect = fitCanvas(skeletonCanvas, skeletonCtx);
+      skeletonCtx.fillStyle = '#191c19';
+      skeletonCtx.fillRect(0, 0, rect.width, rect.height);
+      const pose = data.frames[frame];
+      const center = {
+        x: (data.bounds.min_x + data.bounds.max_x) / 2,
+        y: (data.bounds.min_y + data.bounds.max_y) / 2,
+        z: (data.bounds.min_z + data.bounds.max_z) / 2,
+      };
+      const span = Math.max(
+        data.bounds.max_x - data.bounds.min_x,
+        data.bounds.max_y - data.bounds.min_y,
+        data.bounds.max_z - data.bounds.min_z,
+      );
+      const scale = Math.min(rect.width, rect.height) * 1.35 / Math.max(span, 1);
+      const yaw = Number(yawInput.value) * Math.PI / 180;
+      const pitch = -12 * Math.PI / 180;
+      const points = data.joints.map((_, index) => {
+        const point = posePoint(pose, index);
+        return point ? project(point, center, scale, yaw, pitch, rect) : null;
+      });
+
+      skeletonCtx.lineCap = 'round';
+      skeletonCtx.lineJoin = 'round';
+      skeletonCtx.strokeStyle = 'rgba(240, 243, 239, .78)';
+      skeletonCtx.lineWidth = 4;
+      for (const [a, b] of edges) {
+        if (!points[a] || !points[b]) continue;
+        skeletonCtx.beginPath();
+        skeletonCtx.moveTo(points[a].x, points[a].y);
+        skeletonCtx.lineTo(points[b].x, points[b].y);
+        skeletonCtx.stroke();
+      }
+      points.forEach((point, index) => {
+        if (!point) return;
+        const name = data.joints[index];
+        skeletonCtx.fillStyle = name === 'LeftHand' ? '#72d49a' : name === 'RightHand' ? '#ffad66' : '#f0f3ef';
+        skeletonCtx.beginPath();
+        skeletonCtx.arc(point.x, point.y, name.includes('Hand') ? 7 : 4.5, 0, Math.PI * 2);
+        skeletonCtx.fill();
+      });
+    }
+
+    function render() {
+      frame = indexForTime(playhead);
+      timelineInput.value = String(playhead);
+      const target = data.mocapTarget[frame];
+      const nearest = data.mocapTime[frame];
+      const nearestErrorMs = target == null || nearest == null ? null : (nearest - target) * 1000;
+      const missing = data.videoFrameMissing[frame];
+      readout.textContent = `${playhead.toFixed(3)} / ${duration.toFixed(3)} s`;
+      videoInfo.className = missing ? 'warn' : 'muted';
+      videoInfo.textContent = `aligned seq ${data.seq[frame]} · camera ${data.cameraExposureMs[frame].toFixed(3)}ms${missing ? ' · 缺帧，保持上一帧' : ''}`;
+      poseInfo.textContent = `mocap ${nearest == null ? '-' : nearest.toFixed(3) + 's'} · target ${target == null ? '-' : target.toFixed(3) + 's'} · nearest ${nearestErrorMs == null ? '-' : nearestErrorMs.toFixed(2) + 'ms'}`;
+      drawVideo();
+      drawSkeleton();
+    }
+
+    function animationLoop(now) {
+      if (playing) {
+        if (!lastAnimationTime) lastAnimationTime = now;
+        playhead += (now - lastAnimationTime) / 1000 * Number(speedSelect.value);
+        lastAnimationTime = now;
+        if (playhead >= duration) {
+          playhead = duration;
+          playing = false;
+          playButton.textContent = '播放';
+        }
+        render();
+      }
+      requestAnimationFrame(animationLoop);
+    }
+
+    playButton.addEventListener('click', () => {
+      if (!playing && playhead >= duration) playhead = 0;
+      playing = !playing;
+      lastAnimationTime = 0;
+      playButton.textContent = playing ? '暂停' : '播放';
+      render();
+    });
+    timelineInput.addEventListener('input', () => {
+      playhead = Number(timelineInput.value);
+      playing = false;
+      playButton.textContent = '播放';
+      lastAnimationTime = 0;
+      render();
+    });
+    yawInput.addEventListener('input', drawSkeleton);
+    window.addEventListener('resize', render);
+
+    render();
+    requestAnimationFrame(animationLoop);
+  </script>
+</body>
+</html>

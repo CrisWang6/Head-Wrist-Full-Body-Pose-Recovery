@@ -1,0 +1,12 @@
+depthai>=2.32,<4
+numpy>=1.26,<3
+opencv-contrib-python>=4.8,<5
+scipy>=1.11
+pupil-apriltags>=1.0.4
+matplotlib>=3.8
+Pillow>=10
+psutil>=5.9
+imageio-ffmpeg>=0.5
+PyQt5>5,<5.15.6; platform_machine != "armv6l" and platform_machine != "armv7l" and platform_machine != "aarch64" and platform_machine != "arm64"
+--extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
+PySimpleGUI-4-foss==4.60.4.1

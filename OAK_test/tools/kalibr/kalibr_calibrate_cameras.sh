@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+DATA_DIR="${KALIBR_DATA:-$HOME/kalibr_data}"
+mkdir -p "$DATA_DIR"
+DISPLAY_VALUE="${DISPLAY:-}"
+XAUTH="${XAUTHORITY:-$HOME/.Xauthority}"
+DOCKER=(docker)
+if ! docker ps >/dev/null 2>&1; then
+  DOCKER=(sudo docker)
+fi
+DOCKER_ARGS=(--rm -it -e QT_X11_NO_MITSHM=1 -v "${DATA_DIR}:/data")
+if [[ -n "$DISPLAY_VALUE" ]]; then
+  xhost +local:root >/dev/null 2>&1 || true
+  DOCKER_ARGS+=(-e DISPLAY="$DISPLAY_VALUE" -v /tmp/.X11-unix:/tmp/.X11-unix:rw)
+  [[ -f "$XAUTH" ]] && DOCKER_ARGS+=(-e XAUTHORITY=/root/.Xauthority -v "${XAUTH}:/root/.Xauthority:ro")
+fi
+exec "${DOCKER[@]}" run "${DOCKER_ARGS[@]}" --entrypoint bash kalibr:ros1_20_04 -lc 'args=("$@"); set --; source /catkin_ws/devel/setup.bash; cd /data; exec /catkin_ws/devel/lib/kalibr/kalibr_calibrate_cameras "${args[@]}"' kalibr_calibrate_cameras "$@"

@@ -1,0 +1,411 @@
+diff --git a/scripts/render.py b/scripts/render.py
+index fb3e3f5..f2158aa 100755
+--- a/scripts/render.py
++++ b/scripts/render.py
+@@ -898,6 +898,7 @@ def parse_blenderproc_args() -> argparse.Namespace:
+     parser.add_argument("--denoise", action="store_true", help="Enable Cycles denoising. Disabled by default for sharper camera data.")
+     parser.add_argument("--video-format", default="mp4", choices=("mp4", "avi"))
+     parser.add_argument("--video-crf", type=int, default=16, help="Final MP4 CRF. Lower is higher quality; 16 is visually high quality.")
++    parser.add_argument("--camera-name", default="", help="Render only one cached camera, e.g. head_front_left. Empty renders all cameras.")
+     parser.add_argument(
+         "--head-frame",
+         default="smplx_relative",
+@@ -905,6 +906,15 @@ def parse_blenderproc_args() -> argparse.Namespace:
+         help="Head rig orientation for BlenderProc. 'smplx_relative' calibrates the first frame to the rig axes, then follows SMPL-X Head rotation.",
+     )
+     parser.add_argument("--blenderproc-bin", default="", help="Path to blenderproc inside camtest if auto-detection fails.")
++    parser.add_argument(
++        "--appearance-root",
++        default=str(ROOT / "smplx_models/icon_appearances"),
++        help="Prepared appearance folders containing mesh_smplx.obj and smplx_param.pkl.",
++    )
++    parser.add_argument("--appearance-subjects", default="", help="Comma-separated subject ids under --appearance-root.")
++    parser.add_argument("--appearance-index-offset", type=int, default=0)
++    parser.add_argument("--appearance-count", type=int, default=1)
++    parser.add_argument("--random-seed", type=int, default=20260612)
+     parser.add_argument(
+         "--parallel-cameras",
+         type=int,
+@@ -926,59 +936,99 @@ def blenderproc_main() -> int:
+ 
+     config = load_config(args.config)
+     smplx_model = load_smplx_model(args.smplx_model)
+-    cache_result = build_blenderproc_motion_cache_from_amass(
+-        motion_path=motion_path,
+-        model=smplx_model,
+-        config=config,
+-        tag_rig=make_wrist_tag_rig(config.tag_rig),
+-        output_dir=output_dir,
+-        output_fps=args.output_fps,
+-        max_output_frames=args.max_output_frames,
+-        video_width=args.width,
+-        video_height=args.height,
+-        head_frame_mode=args.head_frame,
+-    )
+-    summary = {
+-        "cache": str(cache_result.cache_path),
+-        "metadata": str(cache_result.metadata_path),
+-        "output_dir": str(output_dir),
+-        "frames": cache_result.frame_count,
+-        "fps": cache_result.output_fps,
+-        "cameras": list(cache_result.camera_names),
+-    }
+-    print(json.dumps(summary, indent=2), flush=True)
+-    if args.prepare_only:
+-        return 0
+-
+     blenderproc_bin = _resolve_blenderproc_bin(args.blenderproc_bin)
+     runner = ROOT / "src/geosim/blenderproc_runner.py"
+     gpu_ids = _resolve_gpu_ids(args.gpu_ids) if args.device == "GPU" else []
+-    parallel_cameras = _resolve_parallel_camera_count(args.parallel_cameras, args.device, gpu_ids, len(cache_result.camera_names))
+-    print(
+-        f"Launching BlenderProc camera jobs: parallel={parallel_cameras}, gpu_ids={gpu_ids or ['shared/default']}",
+-        flush=True,
+-    )
+-    _run_blenderproc_camera_jobs(
+-        blenderproc_bin=blenderproc_bin,
+-        runner=runner,
+-        cache_path=cache_result.cache_path,
+-        output_dir=output_dir,
+-        samples=args.samples,
+-        engine=args.engine,
+-        device=args.device,
+-        denoise=args.denoise,
+-        video_format=args.video_format,
+-        video_crf=args.video_crf,
+-        motion_label=motion_path.stem,
+-        camera_names=cache_result.camera_names,
+-        parallel_cameras=parallel_cameras,
+-        gpu_ids=gpu_ids,
++    appearance_subjects = _select_appearance_subjects(
++        args.appearance_root,
++        args.appearance_count,
++        args.random_seed,
++        args.appearance_subjects,
+     )
++    if len(appearance_subjects) > 1 or appearance_subjects[0] is not None:
++        print(
++            f"Selected appearances: {[subject.name if subject is not None else 'default' for subject in appearance_subjects]}",
++            flush=True,
++        )
++
++    for local_appearance_idx, appearance_subject in enumerate(appearance_subjects):
++        appearance_idx = int(args.appearance_index_offset) + int(local_appearance_idx)
++        rng = np.random.default_rng(int(args.random_seed) + 7919 * appearance_idx)
++        run_output_dir = output_dir
++        if len(appearance_subjects) > 1 or appearance_subject is not None:
++            subject_name = appearance_subject.name if appearance_subject is not None else "default"
++            run_output_dir = output_dir / f"appearance_{appearance_idx:02d}_{subject_name}"
++        run_output_dir.mkdir(parents=True, exist_ok=True)
++        body_betas = _load_thuman_betas(appearance_subject) if appearance_subject is not None else None
++        appearance_manifest = _load_appearance_asset_manifest(appearance_subject) if appearance_subject is not None else {}
++        body_face_groups = _make_body_face_groups(smplx_model)
++        body_group_colors = _make_body_group_colors(rng)
++        scene_config = _make_random_scene_config(rng)
++
++        cache_result = build_blenderproc_motion_cache_from_amass(
++            motion_path=motion_path,
++            model=smplx_model,
++            config=config,
++            tag_rig=make_wrist_tag_rig(config.tag_rig),
++            output_dir=run_output_dir,
++            output_fps=args.output_fps,
++            max_output_frames=args.max_output_frames,
++            video_width=args.width,
++            video_height=args.height,
++            head_frame_mode=args.head_frame,
++            body_betas=body_betas,
++            body_face_groups=body_face_groups,
++            body_group_colors=body_group_colors,
++            appearance_subject=appearance_subject.name if appearance_subject is not None else "",
++            appearance_render_status=str(appearance_manifest.get("render_status", "")),
++            scene_config=scene_config,
++        )
++        camera_names = tuple(name for name in cache_result.camera_names if not args.camera_name or name == args.camera_name)
++        if args.camera_name and not camera_names:
++            raise ValueError(f"Unknown camera {args.camera_name!r}. Available cameras: {', '.join(cache_result.camera_names)}")
++        summary = {
++            "backend": "blenderproc",
++            "cache": str(cache_result.cache_path),
++            "metadata": str(cache_result.metadata_path),
++            "output_dir": str(run_output_dir),
++            "frames": cache_result.frame_count,
++            "fps": cache_result.output_fps,
++            "cameras": list(camera_names),
++            "appearance_subject": appearance_subject.name if appearance_subject is not None else "",
++            "appearance_render_status": appearance_manifest.get("render_status", ""),
++            "body_group_colors": body_group_colors.tolist(),
++            "scene": scene_config,
++        }
++        print(json.dumps(summary, indent=2), flush=True)
++        if args.prepare_only:
++            continue
++
++        parallel_cameras = _resolve_parallel_camera_count(args.parallel_cameras, args.device, gpu_ids, len(camera_names))
++        print(
++            f"Launching BlenderProc camera jobs: parallel={parallel_cameras}, gpu_ids={gpu_ids or ['shared/default']}",
++            flush=True,
++        )
++        _run_blenderproc_camera_jobs(
++            blenderproc_bin=blenderproc_bin,
++            runner=runner,
++            cache_path=cache_result.cache_path,
++            output_dir=run_output_dir,
++            samples=args.samples,
++            engine=args.engine,
++            device=args.device,
++            denoise=args.denoise,
++            video_format=args.video_format,
++            video_crf=args.video_crf,
++            motion_label=motion_path.stem,
++            camera_names=camera_names,
++            parallel_cameras=parallel_cameras,
++            gpu_ids=gpu_ids,
++        )
+     return 0
+ 
+ 
+ def parse_isaacsim_args() -> argparse.Namespace:
+-    parser = argparse.ArgumentParser(description="Render an AMASS/SMPL-X motion with Isaac Sim cameras and wrist tags.")
++    parser = argparse.ArgumentParser(description="Render an AMASS/SMPL-X motion with Isaac Sim cameras.")
+     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
+     parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
+     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
+@@ -998,6 +1048,8 @@ def parse_isaacsim_args() -> argparse.Namespace:
+     parser.add_argument("--rt-subframes", type=int, default=1)
+     parser.add_argument("--warmup-frames", type=int, default=12)
+     parser.add_argument("--video-format", default="mp4", choices=("mp4", "avi"))
++    parser.add_argument("--camera-name", default="", help="Render only one cached camera, e.g. head_front_left. Empty renders all cameras.")
++    parser.add_argument("--hide-wrist-tags", action="store_true", help="Keep wrist tag geometry out of rendered RGB videos.")
+     parser.add_argument(
+         "--appearance-root",
+         default=str(ROOT / "smplx_models/icon_appearances"),
+@@ -1148,7 +1200,10 @@ def isaacsim_main() -> int:
+         if args.prepare_only:
+             continue
+ 
+-        parallel_cameras = _resolve_parallel_camera_count(args.parallel_cameras, "GPU", gpu_ids, len(cache_result.camera_names))
++        camera_names = tuple(name for name in cache_result.camera_names if not args.camera_name or name == args.camera_name)
++        if args.camera_name and not camera_names:
++            raise ValueError(f"Unknown camera {args.camera_name!r}. Available cameras: {', '.join(cache_result.camera_names)}")
++        parallel_cameras = _resolve_parallel_camera_count(args.parallel_cameras, "GPU", gpu_ids, len(camera_names))
+         print(
+             f"Launching Isaac Sim camera jobs: parallel={parallel_cameras}, gpu_ids={gpu_ids or ['shared/default']}",
+             flush=True,
+@@ -1162,8 +1217,9 @@ def isaacsim_main() -> int:
+             rt_subframes=args.rt_subframes,
+             warmup_frames=args.warmup_frames,
+             video_format=args.video_format,
++            hide_wrist_tags=args.hide_wrist_tags,
+             motion_label=motion_path.stem,
+-            camera_names=cache_result.camera_names,
++            camera_names=camera_names,
+             parallel_cameras=parallel_cameras,
+             gpu_ids=gpu_ids,
+         )
+@@ -1431,6 +1487,7 @@ def _run_isaacsim_camera_jobs(
+     rt_subframes: int,
+     warmup_frames: int,
+     video_format: str,
++    hide_wrist_tags: bool,
+     motion_label: str,
+     camera_names: tuple[str, ...],
+     parallel_cameras: int,
+@@ -1460,6 +1517,8 @@ def _run_isaacsim_camera_jobs(
+             "--motion-label",
+             motion_label,
+         ]
++        if hide_wrist_tags:
++            command.append("--hide-wrist-tags")
+         env = os.environ.copy()
+         env["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+         gpu_id = ""
+diff --git a/src/geosim/blenderproc_runner.py b/src/geosim/blenderproc_runner.py
+index 263d320..af9edfd 100644
+--- a/src/geosim/blenderproc_runner.py
++++ b/src/geosim/blenderproc_runner.py
+@@ -40,6 +40,9 @@ def main() -> int:
+     camera_rotations = np.asarray(data["camera_rotations"], dtype=np.float32)
+     tag_names = [str(name) for name in data["tag_names"]]
+     tag_corners = np.asarray(data["tag_corners"], dtype=np.float32)
++    body_face_groups = np.asarray(data["body_face_groups"], dtype=np.int32) if "body_face_groups" in data.files else np.zeros(len(faces), dtype=np.int32)
++    body_group_colors = np.asarray(data["body_group_colors"], dtype=np.float32) if "body_group_colors" in data.files else np.asarray([[0.72, 0.58, 0.49]], dtype=np.float32)
++    scene_config = _load_scene_config(data)
+     width, height = [int(value) for value in data["image_size"]]
+     video_width, video_height = [int(value) for value in data["video_size"]] if "video_size" in data.files else (width, height)
+     fps = float(np.asarray(data["output_fps"]).reshape(-1)[0])
+@@ -60,8 +63,8 @@ def main() -> int:
+         denoise=args.denoise,
+         video_format=args.video_format,
+     )
+-    _create_open_scene(vertices)
+-    body_obj = _create_body_mesh(vertices[0], faces)
++    _create_open_scene(vertices, scene_config)
++    body_obj = _create_body_mesh(vertices[0], faces, body_face_groups, body_group_colors)
+     tag_objs = _create_tag_meshes(tag_names, tag_corners[:, 0], cache_path.parent)
+     camera_objs = _create_cameras(selected_camera_names, fisheye_fov)
+ 
+@@ -253,13 +256,27 @@ def _enable_gpu_cycles() -> None:
+         dev.use = dev_type != "CPU" and "CPU" not in dev_name
+ 
+ 
+-def _create_open_scene(vertices: np.ndarray) -> None:
++def _load_scene_config(data) -> dict[str, object]:
++    def _array_or_default(name: str, default):
++        return np.asarray(data[name]).tolist() if name in data.files else default
++
++    return {
++        "floor_style": str(np.asarray(data["scene_floor_style"]).reshape(-1)[0]) if "scene_floor_style" in data.files else "concrete",
++        "floor_color": _array_or_default("scene_floor_color", [0.50, 0.49, 0.45]),
++        "floor_accent": _array_or_default("scene_floor_accent", [0.34, 0.34, 0.32]),
++        "sun_rotation": _array_or_default("scene_sun_rotation", [42.0, 0.0, 28.0]),
++        "sun_intensity": float(np.asarray(data["scene_sun_intensity"]).reshape(-1)[0]) if "scene_sun_intensity" in data.files else 2600.0,
++    }
++
++
++def _create_open_scene(vertices: np.ndarray, scene_config: dict[str, object]) -> None:
+     bounds_min = vertices.reshape(-1, 3).min(axis=0)
+     bounds_max = vertices.reshape(-1, 3).max(axis=0)
+     center_xy = 0.5 * (bounds_min[:2] + bounds_max[:2])
+     floor_z = float(bounds_min[2]) - 0.015
+ 
+-    floor_mat = _make_principled_material("mat_warm_concrete", (0.52, 0.50, 0.46, 1.0), roughness=0.82)
++    floor_color = tuple(float(v) for v in scene_config.get("floor_color", [0.52, 0.50, 0.46])) + (1.0,)
++    floor_mat = _make_principled_material("mat_floor", floor_color, roughness=0.82)
+     bpy.ops.mesh.primitive_plane_add(size=14.0, location=(float(center_xy[0]), float(center_xy[1]), floor_z))
+     floor = bpy.context.object
+     floor.name = "open_concrete_floor"
+@@ -267,7 +284,8 @@ def _create_open_scene(vertices: np.ndarray) -> None:
+ 
+     # Add a few low-contrast distant primitives so the cameras see a real scene
+     # without turning this into a collision or physics simulation.
+-    accent_mat = _make_principled_material("mat_muted_blue", (0.18, 0.30, 0.36, 1.0), roughness=0.7)
++    accent_color = tuple(float(v) for v in scene_config.get("floor_accent", [0.18, 0.30, 0.36])) + (1.0,)
++    accent_mat = _make_principled_material("mat_floor_accent", accent_color, roughness=0.7)
+     for idx, offset in enumerate(((-3.2, 2.8, 0.35), (3.0, 3.4, 0.5), (2.8, -3.0, 0.25))):
+         bpy.ops.mesh.primitive_cube_add(size=1.0, location=(float(center_xy[0] + offset[0]), float(center_xy[1] + offset[1]), floor_z + offset[2]))
+         block = bpy.context.object
+@@ -283,8 +301,8 @@ def _create_open_scene(vertices: np.ndarray) -> None:
+     bpy.ops.object.light_add(type="SUN", location=(0.0, 0.0, 5.0))
+     sun = bpy.context.object
+     sun.name = "soft_sun"
+-    sun.data.energy = 1.8
+-    sun.rotation_euler = (math.radians(42.0), math.radians(0.0), math.radians(28.0))
++    sun.data.energy = float(scene_config.get("sun_intensity", 2600.0)) / 1400.0
++    sun.rotation_euler = tuple(math.radians(float(v)) for v in scene_config.get("sun_rotation", [42.0, 0.0, 28.0]))
+ 
+     bpy.ops.object.light_add(type="AREA", location=(float(center_xy[0] - 2.0), float(center_xy[1] - 3.0), floor_z + 4.0))
+     area = bpy.context.object
+@@ -293,7 +311,12 @@ def _create_open_scene(vertices: np.ndarray) -> None:
+     area.data.size = 5.0
+ 
+ 
+-def _create_body_mesh(vertices: np.ndarray, faces: np.ndarray) -> bpy.types.Object:
++def _create_body_mesh(
++    vertices: np.ndarray,
++    faces: np.ndarray,
++    body_face_groups: np.ndarray,
++    body_group_colors: np.ndarray,
++) -> bpy.types.Object:
+     mesh = bpy.data.meshes.new("smplx_body_mesh")
+     mesh.from_pydata(vertices.tolist(), [], faces.tolist())
+     mesh.update()
+@@ -301,7 +324,17 @@ def _create_body_mesh(vertices: np.ndarray, faces: np.ndarray) -> bpy.types.Obje
+         polygon.use_smooth = True
+     obj = bpy.data.objects.new("smplx_body", mesh)
+     bpy.context.collection.objects.link(obj)
+-    obj.data.materials.append(_make_principled_material("mat_smplx_skin", (0.72, 0.58, 0.49, 1.0), roughness=0.62))
++    colors = np.asarray(body_group_colors, dtype=float).reshape(-1, 3)
++    for group_idx, color in enumerate(colors):
++        obj.data.materials.append(
++            _make_principled_material(f"mat_body_group_{group_idx}", tuple(float(v) for v in color) + (1.0,), roughness=0.62)
++        )
++    if not obj.data.materials:
++        obj.data.materials.append(_make_principled_material("mat_smplx_skin", (0.72, 0.58, 0.49, 1.0), roughness=0.62))
++    groups = np.asarray(body_face_groups, dtype=np.int32).reshape(-1)
++    if len(groups) == len(mesh.polygons):
++        for polygon, group_idx in zip(mesh.polygons, groups):
++            polygon.material_index = int(np.clip(group_idx, 0, len(obj.data.materials) - 1))
+     obj.modifiers.new("weighted_normals", "WEIGHTED_NORMAL")
+     return obj
+ 
+diff --git a/src/geosim/isaacsim_runner.py b/src/geosim/isaacsim_runner.py
+index 23a5a1e..ef68d3c 100644
+--- a/src/geosim/isaacsim_runner.py
++++ b/src/geosim/isaacsim_runner.py
+@@ -20,6 +20,7 @@ def parse_args() -> argparse.Namespace:
+     parser.add_argument("--rt-subframes", type=int, default=1)
+     parser.add_argument("--warmup-frames", type=int, default=12)
+     parser.add_argument("--video-format", default="mp4", choices=("mp4", "avi"))
++    parser.add_argument("--hide-wrist-tags", action="store_true", help="Do not render wrist tag meshes into RGB outputs.")
+     parser.add_argument("--max-frames", type=int, default=0, help="Debug override. 0 renders every cached frame.")
+     return parser.parse_args()
+ 
+@@ -43,6 +44,7 @@ def main() -> int:
+     scene_config = _scene_config_from_cache(data)
+     sensor_width, sensor_height = [int(value) for value in data["image_size"]]
+     video_width, video_height = [int(value) for value in data["video_size"]] if "video_size" in data.files else (sensor_width, sensor_height)
++    fisheye_fov_deg = float(np.asarray(data["fisheye_fov_deg"]).reshape(-1)[0]) if "fisheye_fov_deg" in data.files else 220.0
+     fps = float(np.asarray(data["output_fps"]).reshape(-1)[0])
+ 
+     if args.camera_name not in camera_names:
+@@ -82,8 +84,8 @@ def main() -> int:
+         UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+         _create_materials(stage, body_group_colors, scene_config)
+         body_meshes = _create_body(stage, vertices[0], faces, body_face_groups, body_group_colors, Vt)
+-        tag_meshes = _create_tags(stage, tag_names, tag_corners[:, 0], Vt)
+-        camera = _create_camera(stage, sensor_width, sensor_height)
++        tag_meshes = [] if args.hide_wrist_tags else _create_tags(stage, tag_names, tag_corners[:, 0], Vt)
++        camera = _create_camera(stage, sensor_width, sensor_height, fisheye_fov_deg)
+         _create_scene(stage, vertices, scene_config)
+ 
+         render_product = rep.create.render_product(camera.GetPath(), (int(sensor_width), int(sensor_height)))
+@@ -131,6 +133,9 @@ def main() -> int:
+             "fps": float(fps),
+             "sensor_resolution": [int(sensor_width), int(sensor_height)],
+             "video_resolution": [int(video_width), int(video_height)],
++            "camera_model": "opencv_fisheye_equidistant",
++            "fisheye_fov_deg": float(fisheye_fov_deg),
++            "wrist_tags_rendered": not bool(args.hide_wrist_tags),
+             "total_seconds": float(total),
+             "seconds_per_frame_mean": float(np.mean(timings)) if timings else 0.0,
+             "seconds_per_frame_median": float(np.median(timings)) if timings else 0.0,
+@@ -274,17 +279,36 @@ def _set_mesh_points(mesh, points: np.ndarray, Vt) -> None:
+     mesh.GetPointsAttr().Set(Vt.Vec3fArray.FromNumpy(np.asarray(points, dtype=np.float32)))
+ 
+ 
+-def _create_camera(stage, width: int, height: int):
+-    from pxr import UsdGeom
++def _create_camera(stage, width: int, height: int, fisheye_fov_deg: float):
++    from pxr import Gf, Sdf, UsdGeom
+ 
+     camera = UsdGeom.Camera.Define(stage, "/World/RenderCamera")
+     camera.CreateClippingRangeAttr((0.01, 80.0))
+     camera.CreateHorizontalApertureAttr(20.955)
+     camera.CreateVerticalApertureAttr(20.955 * float(height) / float(width))
+     camera.CreateFocalLengthAttr(5.0)
++    prim = camera.GetPrim()
++    prim.ApplyAPI("OmniLensDistortionOpenCvFisheyeAPI")
++    _set_or_create_attr(prim, "omni:lensdistortion:model", Sdf.ValueTypeNames.Token, "opencvFisheye")
++    max_theta = math.radians(float(fisheye_fov_deg)) * 0.5
++    focal_px = min(float(width), float(height)) * 0.5 / max_theta
++    _set_or_create_attr(prim, "omni:lensdistortion:opencvFisheye:imageSize", Sdf.ValueTypeNames.Int2, Gf.Vec2i(int(width), int(height)))
++    _set_or_create_attr(prim, "omni:lensdistortion:opencvFisheye:cx", Sdf.ValueTypeNames.Float, float(width) * 0.5)
++    _set_or_create_attr(prim, "omni:lensdistortion:opencvFisheye:cy", Sdf.ValueTypeNames.Float, float(height) * 0.5)
++    _set_or_create_attr(prim, "omni:lensdistortion:opencvFisheye:fx", Sdf.ValueTypeNames.Float, float(focal_px))
++    _set_or_create_attr(prim, "omni:lensdistortion:opencvFisheye:fy", Sdf.ValueTypeNames.Float, float(focal_px))
++    for coeff_name in ("k1", "k2", "k3", "k4"):
++        _set_or_create_attr(prim, f"omni:lensdistortion:opencvFisheye:{coeff_name}", Sdf.ValueTypeNames.Float, 0.0)
+     return camera
+ 
+ 
++def _set_or_create_attr(prim, name: str, value_type, value) -> None:
++    attr = prim.GetAttribute(name)
++    if not attr:
++        attr = prim.CreateAttribute(name, value_type, False)
++    attr.Set(value)
++
++
+ def _create_scene(stage, vertices: np.ndarray, scene_config: dict[str, object]) -> None:
+     from pxr import Gf, UsdGeom, UsdLux
+ 

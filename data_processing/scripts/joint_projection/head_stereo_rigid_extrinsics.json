@@ -1,0 +1,163 @@
+{
+  "schema": "joint_projection.head_stereo_rigid_extrinsics.v3",
+  "recorded_date": "2026-08-03",
+  "rigid_body": "head_rigid",
+  "units": {
+    "translation": "mm",
+    "rotation": "dimensionless"
+  },
+  "source_measurement": {
+    "left_camera_dx_dy_dz_mm": [26.3, 85.0, -53.8],
+    "right_camera_dx_dy_dz_mm": [26.3, -89.0, -53.8],
+    "axis_relation_user_text": "rigid x = camera x, rigid y = camera y, rigid z = -camera z",
+    "interpretation_note": "The supplied left-camera text dz--53.8 mm is interpreted as dz=-53.8 mm."
+  },
+  "convention": {
+    "p_rigid_camera_mm": "camera optical-center position expressed in head-rigid coordinates",
+    "R_rigid_camera": "maps a vector from camera coordinates into head-rigid coordinates",
+    "T_rigid_camera": "p_rigid = R_rigid_camera * p_camera + p_rigid_camera_mm",
+    "T_camera_rigid": "inverse transform: p_camera = T_camera_rigid * p_rigid",
+    "homogeneous_matrix_layout": "row-major 4x4"
+  },
+  "shared_rotation": {
+    "camera_axes_expressed_in_rigid": {
+      "camera_positive_x": [1.0, 0.0, 0.0],
+      "camera_positive_y": [0.0, 1.0, 0.0],
+      "camera_positive_z": [0.0, 0.0, -1.0]
+    },
+    "R_rigid_camera": [
+      [1.0, 0.0, 0.0],
+      [0.0, 1.0, 0.0],
+      [0.0, 0.0, -1.0]
+    ]
+  },
+  "cameras": {
+    "left": {
+      "p_rigid_camera_mm": [26.3, 84.05956409307255, -53.8],
+      "position_offset_from_theory_mm": [0.0, -0.94043590692745, 0.0],
+      "R_rigid_camera": [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, -1.0]
+      ],
+      "T_rigid_camera": [
+        [1.0, 0.0, 0.0, 26.3],
+        [0.0, 1.0, 0.0, 84.05956409307255],
+        [0.0, 0.0, -1.0, -53.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "T_camera_rigid": [
+        [1.0, 0.0, 0.0, -26.3],
+        [0.0, 1.0, 0.0, -84.05956409307255],
+        [0.0, 0.0, -1.0, -53.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "right": {
+      "p_rigid_camera_mm": [26.3, -88.05956409307255, -53.8],
+      "position_offset_from_theory_mm": [0.0, 0.94043590692745, 0.0],
+      "R_rigid_camera": [
+        [1.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, -1.0]
+      ],
+      "T_rigid_camera": [
+        [1.0, 0.0, 0.0, 26.3],
+        [0.0, 1.0, 0.0, -88.05956409307255],
+        [0.0, 0.0, -1.0, -53.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ],
+      "T_camera_rigid": [
+        [1.0, 0.0, 0.0, -26.3],
+        [0.0, 1.0, 0.0, 88.05956409307255],
+        [0.0, 0.0, -1.0, -53.8],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    }
+  },
+  "theoretical_stereo_relation": {
+    "baseline_mm": 174.0,
+    "T_right_camera_left_camera": {
+      "description": "maps left-camera coordinates into right-camera coordinates",
+      "matrix": [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 174.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "T_left_camera_right_camera": {
+      "description": "maps right-camera coordinates into left-camera coordinates",
+      "matrix": [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, -174.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    }
+  },
+  "refined_stereo_relation_derived_from_cameras": {
+    "baseline_mm": 172.1191281861451,
+    "T_right_camera_left_camera": {
+      "description": "maps left-camera coordinates into right-camera coordinates using fixed theoretical rotation and refined positions",
+      "matrix": [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 172.1191281861451],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "T_left_camera_right_camera": {
+      "description": "maps right-camera coordinates into left-camera coordinates using fixed theoretical rotation and refined positions",
+      "matrix": [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, -172.1191281861451],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    }
+  },
+  "measured_head_position_refinement": {
+    "source": "calibrate/parameters/intrinsics/head/kalibr_results_ac_1920x1200_20260729/head_CAM_A_C-camchain.yaml",
+    "source_date": "2026-07-29",
+    "camera_name_mapping": {
+      "calibration_CAM_A": "physical_HEAD_A",
+      "calibration_CAM_C": "physical_HEAD_D"
+    },
+    "T_HEAD_D_HEAD_A_measured_m": {
+      "description": "Kalibr T_cn_cnm1; maps HEAD_A optical coordinates into HEAD_D optical coordinates",
+      "matrix": [
+        [0.9998111388344542, 0.0012677535603512744, -0.019392768328982214, 0.1721180853859674],
+        [-0.0014606946219075734, 0.9999495480322331, -0.00993819708768609, 0.0005913562840308669],
+        [0.019379190740918185, 0.009964647060602731, 0.9997625481959125, -0.00009627238880626444],
+        [0.0, 0.0, 0.0, 1.0]
+      ]
+    },
+    "measured_baseline_mm": 172.1191281861451,
+    "theoretical_baseline_mm": 174.0,
+    "baseline_difference_mm": -1.8808718138549,
+    "rotation_policy": "Ignore the measured optical-frame rotation when defining the head-rigid extrinsic. Both cameras retain the user-confirmed theoretical R_rigid_camera exactly.",
+    "position_alignment_method": "Preserve the theoretical stereo midpoint in head-rigid coordinates and apply half of the measured-minus-theoretical baseline difference symmetrically along the theoretical baseline axis.",
+    "theoretical_camera_centers_rigid_mm": {
+      "HEAD_A": [26.3, 85.0, -53.8],
+      "HEAD_D": [26.3, -89.0, -53.8]
+    },
+    "measured_optical_center_position_offset_from_theory_mm": {
+      "HEAD_A": [0.0, -0.94043590692745, 0.0],
+      "HEAD_D": [0.0, 0.94043590692745, 0.0]
+    },
+    "refined_camera_centers_rigid_mm": {
+      "HEAD_A": [26.3, 84.05956409307255, -53.8],
+      "HEAD_D": [26.3, -88.05956409307255, -53.8]
+    },
+    "usage_note": "The cameras section contains theory plus the measured position offsets. Rotation is always the theoretical shared_rotation. The raw Kalibr matrix is retained only as source evidence and must not replace R_rigid_camera."
+  },
+  "assumptions": [
+    "The supplied dx/dy/dz values locate each camera optical center in head-rigid coordinates.",
+    "Left and right cameras have the same stated axis orientation relative to the head rigid body.",
+    "The 174.0 mm stereo baseline is derived from the supplied y offsets and is not an independent stereo-calibration result.",
+    "The latest measured head stereo pair is stored as CAM_A/C; CAM_C is mapped to the physical HEAD_D used in this recording.",
+    "The head-rigid rotation is theoretical and fixed; the measured stereo calibration contributes only a symmetric optical-center position offset.",
+    "Because stereo calibration alone does not locate the pair midpoint relative to CH07, the theoretical midpoint is preserved."
+  ]
+}

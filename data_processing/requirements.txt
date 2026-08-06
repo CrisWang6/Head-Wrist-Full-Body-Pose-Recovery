@@ -1,0 +1,11 @@
+numpy>=1.26,<3
+pandas>=2.0
+scipy>=1.11
+opencv-python>=4.8,<5
+matplotlib>=3.8
+Pillow>=10
+PyYAML>=6
+pupil-apriltags>=1.0.4
+torch>=2.5
+rtmlib>=0.0.15
+ultralytics>=8

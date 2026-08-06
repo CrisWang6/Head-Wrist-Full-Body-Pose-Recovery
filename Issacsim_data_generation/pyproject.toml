@@ -1,0 +1,27 @@
+[project]
+name = "head-fisheye-wrist-tag-sim"
+version = "0.1.0"
+description = "Geometry-first simulation for head-mounted fisheye cameras observing wrist tags."
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.23",
+]
+
+[project.optional-dependencies]
+vision = [
+  "opencv-python>=4.8",
+]
+viewer = []
+realistic = [
+  "opencv-python>=4.8",
+]
+visualization = [
+  "open3d>=0.18",
+]
+dev = [
+  "pytest>=8",
+  "ruff>=0.9",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

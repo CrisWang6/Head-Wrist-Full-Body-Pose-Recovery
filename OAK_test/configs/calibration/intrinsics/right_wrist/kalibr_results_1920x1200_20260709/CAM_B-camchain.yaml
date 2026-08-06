@@ -1,0 +1,8 @@
+cam0:
+  cam_overlaps: []
+  camera_model: omni
+  distortion_coeffs: [-0.3456460378277328, 0.1363693879544287, 0.0006856937707171817, -0.00046744192701039144]
+  distortion_model: radtan
+  intrinsics: [1.1492714232064651, 1267.445814983662, 1267.4091810456648, 949.054264534717, 608.9960065616624]
+  resolution: [1920, 1200]
+  rostopic: /CAM_B/image_raw
