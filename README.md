@@ -1,6 +1,6 @@
 # Head Wrist Full Body Pose Recovery
 
-Codebase for recovering full-body pose from synchronized head-mounted fisheye cameras, wrist cameras, external stereo cameras and motion-capture rigid bodies.
+Codebase for recovering full-body pose from synchronized head-mounted fisheye cameras, wrist cameras, external stereo cameras and motion-capture rigid bodies. This project builds on the EgoRear-style setup with head cameras, wrist cameras and supporting data-collection system design files.
 
 The repository is organized as a source-code and workflow repo. Raw videos, generated CSV/NPZ datasets, model checkpoints, rendered validation videos and temporary reports are intentionally excluded.
 
