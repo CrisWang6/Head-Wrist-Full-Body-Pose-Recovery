@@ -568,6 +568,24 @@ def masked_heatmap_mse(pred, target, mask):
     return ((pred - target) ** 2 * weight).sum() / denom
 
 
+def tile_panels(panels: list[np.ndarray], *, columns: int) -> np.ndarray:
+    """Tile equally sized panels row-major, padding the final row with blanks.
+
+    The head/wrist rig can expose anywhere between two and eight cameras, so the
+    grid width has to follow the actual view count instead of a fixed layout.
+    """
+    if not panels:
+        raise ValueError("At least one panel is required to build a grid.")
+    columns = max(1, min(int(columns), len(panels)))
+    blank = np.zeros_like(panels[0])
+    rows = []
+    for start in range(0, len(panels), columns):
+        row = panels[start : start + columns]
+        row = row + [blank] * (columns - len(row))
+        rows.append(np.hstack(row))
+    return np.vstack(rows)
+
+
 def save_sample_visualization(
     *,
     output_dir: Path,
@@ -626,9 +644,7 @@ def save_sample_visualization(
             panel_path = output_dir / f"sample_{sample_idx:04d}_frame_{frame_idx:06d}_{camera_name}.jpg"
             cv2.imwrite(str(panel_path), cv2.cvtColor(overlay.astype(np.uint8), cv2.COLOR_RGB2BGR))
         panels.append(overlay.astype(np.uint8))
-    top = np.hstack(panels[:4])
-    bottom = np.hstack(panels[4:])
-    grid = np.vstack([top, bottom])
+    grid = tile_panels(panels, columns=4)
     suffix = "highres" if highres else "trainres"
     out_path = output_dir / f"sample_{sample_idx:04d}_frame_{frame_idx:06d}_{suffix}.jpg"
     cv2.imwrite(str(out_path), cv2.cvtColor(grid, cv2.COLOR_RGB2BGR))
