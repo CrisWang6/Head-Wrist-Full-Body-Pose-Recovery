@@ -23,6 +23,7 @@ from egorear_sim2d.dataset import (
     torch_collate,
 )
 from egorear_sim2d.pose3d import EgoRearPose3DNet, EgoRearStage3Pipeline
+from egorear_sim2d.splits import load_split_manifest
 from egorear_sim2d.refinement import (
     HeadBCHeatmapRefinementNet,
     load_refiner_state,
@@ -61,6 +62,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint-label", required=True)
     parser.add_argument("--split", choices=("train", "test", "all"), default="all")
     parser.add_argument("--train-ratio", type=float, default=0.8)
+    parser.add_argument(
+        "--split-manifest",
+        default="",
+        help=(
+            "Shared train/val/test NPZ used for training. Overrides --train-ratio so the "
+            "exported test video only contains frames the model never trained on."
+        ),
+    )
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--fps", type=float, default=30.0)
@@ -366,13 +375,32 @@ def main() -> int:
     if device.type == "cuda" and torch.cuda.device_count() > 1:
         pipeline = torch.nn.DataParallel(pipeline)
 
-    split_at = max(
-        1, min(len(dataset) - 1, int(round(len(dataset) * args.train_ratio)))
-    )
+    if args.split_manifest:
+        manifest = load_split_manifest(
+            args.split_manifest,
+            expected_length=len(dataset),
+            expected_frame_indices=dataset_frames,
+        )
+        membership = np.full(len(dataset), "", dtype=object)
+        membership[manifest["train_indices"].astype(np.int64)] = "train"
+        membership[manifest["val_indices"].astype(np.int64)] = "train"
+        membership[manifest["test_indices"].astype(np.int64)] = "test"
+        split_source = f"manifest:{Path(args.split_manifest).name}"
+    else:
+        split_at = max(
+            1, min(len(dataset) - 1, int(round(len(dataset) * args.train_ratio)))
+        )
+        membership = np.where(
+            np.arange(len(dataset)) < split_at, "train", "test"
+        ).astype(object)
+        split_source = f"chronological:{args.train_ratio}"
     requested_splits = ("train", "test") if args.split == "all" else (args.split,)
-    split_ranges = {
-        "train": (0, split_at),
-        "test": (split_at, len(dataset)),
+    split_positions = {
+        name: {
+            int(index): position
+            for position, index in enumerate(np.flatnonzero(membership == name))
+        }
+        for name in requested_splits
     }
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -381,10 +409,10 @@ def main() -> int:
     for split_name in requested_splits:
         path = output_dir / f"{args.checkpoint_label}_{split_name}.mp4"
         writers[split_name] = FfmpegVideoWriter(path, args.fps, args.crf)
-        start, end = split_ranges[split_name]
         statistics[split_name] = {
             "path": str(path),
-            "source_frames": end - start,
+            "split_source": split_source,
+            "source_frames": len(split_positions[split_name]),
             "written_frames": 0,
             "valid_gt_frames": 0,
             "mpjpe_mm_sum": 0.0,
@@ -407,7 +435,7 @@ def main() -> int:
             image_batch = batch["img"].numpy()
             for batch_index in range(len(predictions)):
                 current_index = global_index + batch_index
-                split_name = "train" if current_index < split_at else "test"
+                split_name = str(membership[current_index])
                 if split_name not in writers:
                     continue
                 stats = statistics[split_name]
@@ -416,7 +444,6 @@ def main() -> int:
                     and stats["written_frames"] >= args.max_frames_per_split
                 ):
                     continue
-                split_start, split_end = split_ranges[split_name]
                 ground_truth = pose_values[current_index] if pose_valid[current_index] else None
                 canvas, error = render_frame(
                     image_batch[batch_index],
@@ -427,8 +454,8 @@ def main() -> int:
                     checkpoint_label=args.checkpoint_label,
                     checkpoint_epoch=int(checkpoint.get("epoch", -1)),
                     global_index=current_index,
-                    split_index=current_index - split_start,
-                    split_length=split_end - split_start,
+                    split_index=split_positions[split_name][current_index],
+                    split_length=len(split_positions[split_name]),
                 )
                 writers[split_name].write(canvas)
                 stats["written_frames"] += 1
