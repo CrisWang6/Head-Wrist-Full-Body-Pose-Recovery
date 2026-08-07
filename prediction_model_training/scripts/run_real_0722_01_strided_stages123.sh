@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /home/gaoweijian/EgoRear_w_hand
+REPO_ROOT=${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+cd "${REPO_ROOT}"
 
-PYTHON=/home/gaoweijian/miniforge3/envs/camtest/bin/python
-LABEL_ROOT=data/labels/real_0722_01_head2cam_direct2d
+PYTHON=${PYTHON:-${PYTHON_BIN:-python}}
+LABEL_ROOT=${LABEL_ROOT:-data/labels/real_0722_01_head2cam_direct2d}
 POSE3D_LABELS=${LABEL_ROOT}/pose3d_head_stereo_lifted_12j.npz
 SEED=${SEED:-42}
 PATIENCE=${PATIENCE:-15}
@@ -97,6 +98,7 @@ run_stride() {
 }
 
 MASTER_LOG=logs/real_0722_01_strided_three_runs_status.txt
+mkdir -p "$(dirname "${MASTER_LOG}")"
 echo "state=running started=$(date --iso-8601=seconds)" > "${MASTER_LOG}"
 for stride in 10 30 90; do
   echo "current_stride=${stride} started=$(date --iso-8601=seconds)" >> "${MASTER_LOG}"

@@ -2,6 +2,8 @@
 
 验证日期：2026-07-24
 
+本文是 2026-07-24 的快照。`prediction_model_training` 在 2026-08-07 做过一次单独复核，包含 stage1-3 端到端跑通结果和与 4090 主机的核对方式，见 [训练代码复核记录](prediction_model_training/docs/VERIFICATION_20260807.md)。
+
 ## Git 仓库
 
 | 仓库 | 分支 | 首次提交候选文件 | 代码文件 |

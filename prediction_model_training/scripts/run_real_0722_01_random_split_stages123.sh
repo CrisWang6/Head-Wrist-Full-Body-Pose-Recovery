@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd /home/gaoweijian/EgoRear_w_hand
+REPO_ROOT=${REPO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+cd "${REPO_ROOT}"
 
-PYTHON=/home/gaoweijian/miniforge3/envs/camtest/bin/python
-LABEL_ROOT=data/labels/real_0722_01_head2cam_direct2d
-POSE3D_LABELS=${LABEL_ROOT}/pose3d_head_stereo_lifted_12j.npz
-SPLIT_MANIFEST=data/splits/real_0722_01_global_random_80_10_10_seed42.npz
+PYTHON=${PYTHON:-${PYTHON_BIN:-python}}
+LABEL_ROOT=${LABEL_ROOT:-data/labels/real_0722_01_head2cam_direct2d}
+POSE3D_LABELS=${POSE3D_LABELS:-${LABEL_ROOT}/pose3d_head_stereo_lifted_12j.npz}
+SPLIT_MANIFEST=${SPLIT_MANIFEST:-data/splits/real_0722_01_global_random_80_10_10_seed42.npz}
 STAGE1_DIR=checkpoints/real_0722_01_randomsplit_seed42_stage1
 STAGE2_DIR=checkpoints/real_0722_01_randomsplit_seed42_stage2
 STAGE3_DIR=checkpoints/real_0722_01_randomsplit_seed42_stage3
 RUN_ROOT=logs/real_0722_01_randomsplit_seed42_stages123
 
 mkdir -p "${RUN_ROOT}"
-export CUDA_VISIBLE_DEVICES=0,1
+export CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0,1}
 START_STAGE=${START_STAGE:-1}
 
 if (( START_STAGE <= 1 )); then

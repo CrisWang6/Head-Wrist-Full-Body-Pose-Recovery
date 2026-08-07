@@ -10,10 +10,13 @@ prediction_model_training/
 │  ├─ dataset.py       # 多视角数据集与帧读取
 │  ├─ labels.py        # 仿真投影标签与 heatmap
 │  ├─ model.py         # 一阶段共享权重网络
-│  └─ refinement.py    # CAM_B/C 二阶段 residual refinement
+│  ├─ refinement.py    # CAM_B/C 二阶段 residual refinement
+│  ├─ pose3d.py        # 三阶段 3D lifting 网络与推理 pipeline
+│  └─ splits.py        # 各阶段共享的 train/val/test split manifest
 ├─ scripts/            # 一阶段数据准备、训练、测试和可视化
 ├─ experiments/
 │  ├─ stage2_refinement/    # 基于一阶段特征的双视角 refinement
+│  ├─ stage3_pose3d/        # 基于二阶段特征的 12 关节 3D lifting
 │  └─ multiview_refinement/ # 基于 manifest 的独立双视角实验
 ├─ configs/            # 相机参数和历史训练配置
 └─ docs/
@@ -169,9 +172,40 @@ python experiments/stage2_refinement/scripts/train_refinement.py \
 python experiments/stage2_refinement/scripts/test_refinement.py --help
 ```
 
-当前 stage2 历史配置仍是 16 关节。接入 0722 的 12 通道模型前，必须同时统一 joint layout、输出头和 checkpoint metadata。
+stage2 已经跟随 0722 实验统一到 12 关节，配置见 `experiments/stage2_refinement/configs/stage2_head_bc_refinement.json`。复用 16 关节的历史 checkpoint 前，必须同时核对 joint layout、输出头和 checkpoint metadata。
 
-## 5. 独立多视角实验
+## 5. 三阶段 3D lifting
+
+`experiments/stage3_pose3d` 冻结 stage1/stage2，把 refined heatmap 和特征抬升成头部坐标系下的 12 关节 3D 骨架，监督来自 stereo-lifted 的肩肘关节：
+
+```bash
+python scripts/prepare_pose3d_labels.py --help
+python experiments/stage3_pose3d/scripts/train_pose3d.py --help
+python experiments/stage3_pose3d/scripts/visualize_pose3d_video.py --help
+```
+
+导出预测视频时应传入训练用的同一个 `--split-manifest`，否则 test 视频会退回按时间顺序的 80/20 划分，可能混入训练帧。
+
+## 6. 共享数据划分与横向对比
+
+stage1/2/3 通过同一个 split manifest 保证划分一致，避免相邻帧跨子集泄漏：
+
+```bash
+python scripts/create_dataset_split.py --help
+python scripts/visualize_random_split_test.py --help
+python scripts/build_split_comparison_report.py --help
+```
+
+整条 stage1→2→3 串行流程有两个 preset：
+
+```bash
+bash scripts/run_real_0722_01_random_split_stages123.sh    # 全局 random split，seed 42
+bash scripts/run_real_0722_01_strided_stages123.sh         # stride 10/30/90 三组对比
+```
+
+两个脚本默认在仓库根目录下用 `python` 运行，可用 `REPO_ROOT`、`PYTHON`、`LABEL_ROOT`、`SPLIT_MANIFEST`、`CUDA_VISIBLE_DEVICES` 覆盖；random split preset 还支持 `START_STAGE` 从中间阶段续跑。
+
+## 7. 独立多视角实验
 
 `experiments/multiview_refinement` 使用 CSV manifest 直接读取 CAM_B/C RGB、初始 heatmap 和 target heatmap：
 
@@ -183,14 +217,15 @@ python experiments/multiview_refinement/infer.py --help
 
 这套实现与主 `egorear_sim2d.refinement` 是两个实验分支，不应混用 checkpoint。
 
-## 6. 数据与产物边界
+## 8. 数据与产物边界
 
 以下内容全部在 Git 外：
 
 - H.265、拆帧图片、label NPZ；
 - checkpoint、权重和优化器状态；
 - TensorBoard event、日志、验证图；
-- 仿真输出和 SMPL-X 模型。
+- 仿真输出和 SMPL-X 模型；
+- `data/splits/*.npz` split manifest，可用 `create_dataset_split.py` 加相同 seed 复现。
 
 推荐统一挂载：
 
@@ -199,7 +234,7 @@ python experiments/multiview_refinement/infer.py --help
 /artifacts/egorear  # checkpoint、logs、outputs
 ```
 
-## 7. 未直接纳入的相关代码
+## 9. 未直接纳入的相关代码
 
 上游 EgoRear 参考实现和含明文 SSH 密码的部署脚本没有复制，详见 [未纳入代码](docs/UNINTEGRATED_CODE.md)。
 
