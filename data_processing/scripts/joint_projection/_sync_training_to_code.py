@@ -113,6 +113,8 @@ JP_TRAINING_FILES = [
     "_tb_tunnel_stage2_v31.py",
     "_tb_tunnel_stage3_v31.py",
     "_tb_tunnel_stage3_v31_aligned.py",
+    "_tb_tunnel_0810_all_stages.py",
+    "_start_tb_0810_all_stages.py",
     "_probe_gwj_training.py",
     "_sync_training_to_code.py",
 ]
@@ -148,7 +150,7 @@ GWJ_UPLOAD_JP_FILES = [
 
 def patch_python_for_code_layout(text: str) -> str:
     text = text.replace(
-        "REPO_ROOT = SCRIPT_DIR.parents[2]",
+        "REPO_ROOT = SCRIPT_DIR.parents[1]",
         "REPO_ROOT = SCRIPT_DIR.parents[2]",
     )
     return text
