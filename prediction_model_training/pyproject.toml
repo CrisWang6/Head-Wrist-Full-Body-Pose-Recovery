@@ -10,14 +10,5 @@ dependencies = [
   "tensorboard>=2.20",
 ]
 
-[project.optional-dependencies]
-multiview = [
-  "Pillow>=10",
-]
-dev = [
-  "pytest>=8",
-  "ruff>=0.9",
-]
-
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,24 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-PYTHON_BIN="${PYTHON_BIN:-python}"
-DATA_ROOT="${DATA_ROOT:-${PROJECT}/data}"
-ARTIFACT_ROOT="${ARTIFACT_ROOT:-${PROJECT}}"
-cd "${PROJECT}"
+cd /home/gaoweijian/EgoRear_w_hand
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1}"
 
-resume_checkpoint="${RESUME_CHECKPOINT:-${ARTIFACT_ROOT}/checkpoints/isaacsim_humaneva_2app_notags_fisheye220_head_stage1/best.pt}"
+resume_checkpoint="${RESUME_CHECKPOINT:-checkpoints/isaacsim_humaneva_2app_notags_fisheye220_head_stage1/best.pt}"
 max_hours="${MAX_HOURS:-47.75}"
 resume_optimizer_args=()
 if [[ "${RESUME_OPTIMIZER:-0}" == "1" ]]; then
   resume_optimizer_args+=(--resume-optimizer)
 fi
 
-"${PYTHON_BIN}" scripts/train_heatmap.py \
-  --label-root "${DATA_ROOT}/labels/real_0722_01_head2cam_direct2d/heatmap_labels_114x64.npz" \
-  --output-dir "${ARTIFACT_ROOT}/checkpoints/real_0722_01_head2cam_direct2d_12j_stage1_48h" \
-  --log-dir "${ARTIFACT_ROOT}/logs/real_0722_01_head2cam_direct2d_12j_stage1_48h" \
+/home/gaoweijian/miniforge3/envs/camtest/bin/python scripts/train_heatmap.py \
+  --label-root data/labels/real_0722_01_head2cam_direct2d/heatmap_labels_114x64.npz \
+  --output-dir checkpoints/real_0722_01_head2cam_direct2d_12j_stage1_48h \
+  --log-dir logs/real_0722_01_head2cam_direct2d_12j_stage1_48h \
   --epochs 9999 \
   --batch-size 16 \
   --workers 8 \

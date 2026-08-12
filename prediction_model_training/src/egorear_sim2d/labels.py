@@ -254,6 +254,64 @@ def project_to_video_pixels(
     return keypoints, visible
 
 
+
+
+# Per-joint Gaussian blob radius in source video pixels (3*sigma convention in generate_heatmaps).
+DEFAULT_JOINT_HEATMAP_RADIUS_PX: dict[str, float] = {
+    # head branch (EgoRear naming)
+    "Head": 10.0,          # nose
+    "Neck": 10.0,
+    "LeftArm": 20.0,       # shoulder
+    "RightArm": 20.0,
+    "LeftForeArm": 30.0,   # elbow
+    "RightForeArm": 30.0,
+    "LeftHand": 50.0,      # wrist
+    "RightHand": 50.0,
+    "LeftUpLeg": 10.0,     # hip
+    "RightUpLeg": 10.0,
+    "LeftLeg": 20.0,       # knee
+    "RightLeg": 20.0,
+    "LeftFoot": 10.0,      # ankle
+    "RightFoot": 10.0,
+    "LeftToeBase": 10.0,   # toe tip
+    "RightToeBase": 10.0,
+    # wrist-camera branch
+    "L_Hip": 10.0,
+    "R_Hip": 10.0,
+    "L_Knee": 20.0,
+    "R_Knee": 20.0,
+    "L_Ankle": 10.0,
+    "R_Ankle": 10.0,
+    "Spine1": 10.0,
+}
+
+
+def resolve_joint_radii_px(
+    joint_names: tuple[str, ...] | list[str],
+    radius_map: dict[str, float] | None = None,
+    *,
+    default_radius_px: float = 10.0,
+) -> np.ndarray:
+    mapping = DEFAULT_JOINT_HEATMAP_RADIUS_PX if radius_map is None else radius_map
+    return np.asarray(
+        [float(mapping.get(str(name), default_radius_px)) for name in joint_names],
+        dtype=np.float32,
+    )
+
+
+def sigma_heatmap_from_radius_px(
+    radius_px: float,
+    *,
+    stride_x: float,
+    stride_y: float,
+) -> float:
+    """Convert video-space blob radius (≈3σ) to heatmap σ using average stride."""
+    if radius_px <= 0:
+        return 0.0
+    stride = 0.5 * (float(stride_x) + float(stride_y))
+    return float(radius_px) / (3.0 * max(stride, 1e-8))
+
+
 def camera_type_masks(camera_names: tuple[str, ...] | list[str]) -> tuple[np.ndarray, np.ndarray]:
     wrist_mask = np.asarray(["wrist" in str(camera_name) for camera_name in camera_names], dtype=bool)
     head_mask = ~wrist_mask
@@ -266,7 +324,8 @@ def generate_heatmaps(
     *,
     video_size: tuple[int, int],
     heatmap_size: tuple[int, int],
-    sigma: float,
+    sigma: float | None = None,
+    joint_radii_px: np.ndarray | float | None = None,
 ) -> np.ndarray:
     keypoints = np.asarray(keypoints, dtype=np.float32)
     visible = np.asarray(visible, dtype=bool)
@@ -278,12 +337,18 @@ def generate_heatmaps(
 
     stride_x = float(video_width) / float(heatmap_width)
     stride_y = float(video_height) / float(heatmap_height)
-    tmp_size = int(float(sigma) * 3.0)
-    size = 2 * tmp_size + 1
-    x = np.arange(0, size, 1, np.float32)
-    y = x[:, None]
-    x0 = y0 = size // 2
-    gaussian = np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / (2 * float(sigma) ** 2))
+
+    if joint_radii_px is None:
+        legacy_sigma = 1.5 if sigma is None else float(sigma)
+        radii = np.full((joint_count,), legacy_sigma * 3.0, dtype=np.float32)
+    elif np.ndim(joint_radii_px) == 0:
+        radii = np.full((joint_count,), float(joint_radii_px), dtype=np.float32)
+    else:
+        radii = np.asarray(joint_radii_px, dtype=np.float32).reshape(-1)
+        if radii.shape[0] != joint_count:
+            raise ValueError(
+                f"joint_radii_px length {radii.shape[0]} != joint_count {joint_count}"
+            )
 
     flat_points = keypoints.reshape(-1, joint_count, 2)
     flat_visible = visible.reshape(-1, joint_count)
@@ -292,6 +357,20 @@ def generate_heatmaps(
         for joint_idx in range(joint_count):
             if not flat_visible[sample_idx, joint_idx]:
                 continue
+            radius_px = float(radii[joint_idx])
+            if radius_px <= 0:
+                continue
+            sigma_h = sigma_heatmap_from_radius_px(
+                radius_px, stride_x=stride_x, stride_y=stride_y
+            )
+            tmp_size = max(1, int(round(sigma_h * 3.0)))
+            size = 2 * tmp_size + 1
+            x = np.arange(0, size, 1, np.float32)
+            y = x[:, None]
+            x0 = y0 = size // 2
+            gaussian = np.exp(
+                -((x - x0) ** 2 + (y - y0) ** 2) / (2.0 * sigma_h ** 2)
+            )
             mu_x = int(flat_points[sample_idx, joint_idx, 0] / stride_x + 0.5)
             mu_y = int(flat_points[sample_idx, joint_idx, 1] / stride_y + 0.5)
             ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]

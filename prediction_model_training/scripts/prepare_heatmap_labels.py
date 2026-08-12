@@ -8,7 +8,6 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-DEFAULT_SIMULATION_ROOT = ROOT.parent / "Issacsim_data_generation"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -17,7 +16,7 @@ from egorear_sim2d.labels import build_labels_for_render_dir
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build 2D heatmap label caches from Simulation Isaac render outputs.")
-    parser.add_argument("--simulation-root", default=str(DEFAULT_SIMULATION_ROOT))
+    parser.add_argument("--simulation-root", default="/home/gaoweijian/Simulation")
     parser.add_argument("--render-root", required=True, help="Folder containing appearance_* render subfolders.")
     parser.add_argument("--output-dir", default="data/labels")
     parser.add_argument("--smplx-model", default="", help="Defaults to <simulation-root>/smplx_models/SMPLX_NEUTRAL_2020.npz.")

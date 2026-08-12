@@ -66,6 +66,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-hours", type=float, default=0.0, help="Stop cleanly after this wall-clock duration. 0 disables.")
     parser.add_argument("--save-every", type=int, default=1, help="Keep a numbered checkpoint every N epochs. 0 disables.")
     parser.add_argument("--keep-last", type=int, default=3, help="Number of numbered checkpoints to retain.")
+    parser.add_argument(
+        "--joint-radius-config",
+        default="",
+        help="JSON file with per-joint Gaussian blob radius in source video pixels.",
+    )
+    parser.add_argument(
+        "--default-joint-radius-px",
+        type=float,
+        default=10.0,
+        help="Fallback blob radius (video px) for joints missing from --joint-radius-config.",
+    )
     parser.add_argument("--early-stop-patience", type=int, default=15)
     return parser.parse_args()
 
@@ -97,12 +108,22 @@ def main() -> int:
                 f"{label_files[0]}={head_joint_names}, {label_file}={names}"
             )
     assert head_joint_names is not None
+    joint_radius_px = {name: float(args.default_joint_radius_px) for name in head_joint_names}
+    if args.joint_radius_config:
+        radius_path = Path(args.joint_radius_config).expanduser()
+        sys.path.insert(0, "/home/gaoweijian/0806_batch/repo/test_code/joint_projection")
+        from joint_radius_config import load_joint_radius_video_px
+
+        joint_radius_px.update(load_joint_radius_video_px(radius_path))
+
     dataset = MultiViewHeatmapDataset(
         label_files,
         frame_root=Path(args.frame_root) if args.frame_root else None,
         render_root=Path(args.render_root) if args.render_root else None,
         image_size=(args.image_width, args.image_height),
         visible_only_loss=args.visible_only_loss,
+        joint_radius_px=joint_radius_px,
+        default_joint_radius_px=args.default_joint_radius_px,
     )
     dataset_frames = np.asarray(
         [
@@ -235,6 +256,8 @@ def main() -> int:
     config = vars(args) | {
         "label_files": [str(path) for path in label_files],
         "head_joint_names": list(head_joint_names),
+        "joint_radius_px": joint_radius_px,
+        "default_joint_radius_px": args.default_joint_radius_px,
         "num_head_heatmaps": len(head_joint_names),
         "view_weight_sharing": "one shared head_branch is applied to all camera views",
         "train_frames": len(train_indices),
@@ -553,14 +576,18 @@ def add_heatmap_summary(writer, batch, pred, phase: str, epoch: int, train_branc
     pred0 = pred[branch][0, view_idx].detach().cpu()
     image = denormalize(img)
     target_max = target.max(dim=0).values.clamp(0, 1)
-    pred_max = pred0.max(dim=0).values
-    pred_max = (pred_max - pred_max.min()) / (pred_max.max() - pred_max.min()).clamp_min(1e-6)
+    # Model outputs unbounded logits (~0.05 peak) while GT is [0, 1].
+    # Min-max fails when the field is flat (all-zero blue). Scale by peak instead.
+    pred_max = pred0.clamp(min=0).max(dim=0).values
+    pred_vis = (pred_max / pred_max.max().clamp_min(1e-6)).clamp(0, 1)
     target_rgb = torch.stack([target_max, torch.zeros_like(target_max), torch.zeros_like(target_max)], dim=0)
-    pred_rgb = torch.stack([torch.zeros_like(pred_max), torch.zeros_like(pred_max), pred_max], dim=0)
+    pred_rgb = torch.stack([torch.zeros_like(pred_vis), torch.zeros_like(pred_vis), pred_vis], dim=0)
     target_rgb = torch.nn.functional.interpolate(target_rgb[None], size=image.shape[-2:], mode="bilinear", align_corners=False)[0]
     pred_rgb = torch.nn.functional.interpolate(pred_rgb[None], size=image.shape[-2:], mode="bilinear", align_corners=False)[0]
-    overlay = (0.65 * image + 0.22 * target_rgb + 0.22 * pred_rgb).clamp(0, 1)
+    overlay = (0.55 * image + 0.25 * target_rgb + 0.35 * pred_rgb).clamp(0, 1)
     writer.add_image(f"{phase}/overlay_gt_red_pred_blue", overlay, epoch)
+    writer.add_image(f"{phase}/gt_heatmap_red", target_rgb, epoch)
+    writer.add_image(f"{phase}/pred_heatmap_blue", pred_rgb, epoch)
 
 
 def denormalize(img):

@@ -14,7 +14,6 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-DEFAULT_SIMULATION_ROOT = ROOT.parent / "Issacsim_data_generation"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
@@ -23,7 +22,7 @@ from egorear_sim2d.labels import build_labels_for_render_dir, resolve_projection
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Prepare frame-level RGB images and heatmap label caches.")
-    parser.add_argument("--simulation-root", default=str(DEFAULT_SIMULATION_ROOT))
+    parser.add_argument("--simulation-root", default="/home/gaoweijian/Simulation")
     parser.add_argument("--render-root", required=True)
     parser.add_argument("--label-dir", default="data/labels/humaneva_5app")
     parser.add_argument("--frame-dir", default="data/frames/humaneva_5app")

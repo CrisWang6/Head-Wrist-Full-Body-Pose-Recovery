@@ -51,7 +51,7 @@ def mpjpe(prediction, target):
     return (prediction - target).square().sum(dim=-1).sqrt().mean()
 
 
-def run_epoch(model, loader, pose_by_sequence, device, joint_count, *, optimizer=None, max_steps=0):
+def run_epoch(model, loader, pose_targets, device, joint_count, *, optimizer=None, max_steps=0):
     import torch
 
     training = optimizer is not None
@@ -62,11 +62,8 @@ def run_epoch(model, loader, pose_by_sequence, device, joint_count, *, optimizer
     proposal_losses = []
     for step, batch in enumerate(loader, start=1):
         images = batch["img"].to(device, non_blocking=True).float()
-        target = torch.as_tensor(
-            np.stack([pose_by_sequence[int(seq)] for seq in batch["frame_idx"].tolist()]),
-            device=device,
-            dtype=torch.float32,
-        )
+        global_idx = batch["global_idx"].detach().cpu().numpy().astype(np.int64)
+        target = torch.as_tensor(pose_targets[global_idx], device=device, dtype=torch.float32)
         with torch.set_grad_enabled(training):
             output = model(images)
             final_loss = mpjpe(output["pose3d"], target)
@@ -97,6 +94,7 @@ def run_epoch(model, loader, pose_by_sequence, device, joint_count, *, optimizer
 def main() -> int:
     import torch
     from torch.utils.data import DataLoader, Subset
+    import torch
     from torch.utils.tensorboard import SummaryWriter
 
     args = parse_args()
@@ -104,7 +102,7 @@ def main() -> int:
     np.random.seed(args.seed)
     dataset = MultiViewHeatmapDataset(
         discover_label_files(Path(args.label_root)),
-        image_size=(456, 256),
+        image_size=(480, 300),
         visible_only_loss=True,
     )
     pose_labels = np.load(args.pose3d_labels, allow_pickle=True)
@@ -119,11 +117,27 @@ def main() -> int:
     )
     if not np.array_equal(dataset_frames, pose_frames):
         raise ValueError("2D and 3D frame_indices are not exactly aligned")
-    pose_by_sequence = {
-        int(sequence): pose_values[index]
-        for index, sequence in enumerate(pose_frames)
-        if pose_valid[index]
-    }
+    pose_targets = pose_values.astype(np.float32)
+
+    class _IndexedSubset(torch.utils.data.Dataset):
+        def __init__(self, base, indices):
+            self.base = base
+            self.indices = np.asarray(indices, dtype=np.int64)
+
+        def __len__(self):
+            return int(self.indices.shape[0])
+
+        def __getitem__(self, idx):
+            global_idx = int(self.indices[idx])
+            sample = dict(self.base[global_idx])
+            sample["global_idx"] = np.int64(global_idx)
+            return sample
+
+    def _collate_with_global_idx(batch):
+        global_idx = torch.as_tensor([int(item.pop("global_idx")) for item in batch])
+        collated = torch_collate(batch)
+        collated["global_idx"] = global_idx
+        return collated
     if args.split_manifest:
         split_manifest = load_split_manifest(
             args.split_manifest,
@@ -151,8 +165,8 @@ def main() -> int:
         "persistent_workers": args.workers > 0,
         "collate_fn": torch_collate,
     }
-    train_loader = DataLoader(Subset(dataset, train_indices.tolist()), shuffle=True, **loader_args)
-    val_loader = DataLoader(Subset(dataset, val_indices.tolist()), shuffle=False, **loader_args)
+    train_loader = DataLoader(_IndexedSubset(dataset, train_indices), shuffle=True, **{k: v for k, v in loader_args.items() if k != 'collate_fn'}, collate_fn=_collate_with_global_idx)
+    val_loader = DataLoader(_IndexedSubset(dataset, val_indices), shuffle=False, **{k: v for k, v in loader_args.items() if k != 'collate_fn'}, collate_fn=_collate_with_global_idx)
 
     stage2_checkpoint = torch.load(args.stage2_checkpoint, map_location="cpu", weights_only=False)
     stage2_config = stage2_checkpoint.get("config", {})
@@ -160,7 +174,7 @@ def main() -> int:
     stage2 = HeadBCHeatmapRefinementNet(
         stage1,
         num_joints=len(joint_names),
-        heatmap_size=(114, 64),
+        heatmap_size=(int(stage2_config.get("heatmap_width", 114)), int(stage2_config.get("heatmap_height", 64))),
         base_channels=int(stage2_config.get("base_channels", 64)),
         query_dim=int(stage2_config.get("query_dim", 256)),
         sampling_points=int(stage2_config.get("sampling_points", 8)),
@@ -190,7 +204,7 @@ def main() -> int:
     writer = SummaryWriter(str(tensorboard_dir))
     config = vars(args) | {
         "joint_names": joint_names,
-        "coordinate_frame": "mocap_head_full_rigid_transform",
+        "coordinate_frame": "0806_nose_translation_offset_m",
         "target_unit": "meter",
         "train_frames": len(train_indices),
         "val_frames": len(val_indices),
@@ -258,12 +272,12 @@ def main() -> int:
             writer.add_scalar(f"val_joint_mm/{name}", value, best_epoch)
     for epoch in range(start_epoch, args.epochs + 1):
         train_metrics = run_epoch(
-            pipeline, train_loader, pose_by_sequence, device, len(joint_names),
+            pipeline, train_loader, pose_targets, device, len(joint_names),
             optimizer=optimizer, max_steps=args.max_steps,
         )
         with torch.no_grad():
             val_metrics = run_epoch(
-                pipeline, val_loader, pose_by_sequence, device, len(joint_names),
+                pipeline, val_loader, pose_targets, device, len(joint_names),
                 max_steps=args.max_steps,
             )
         current = float(val_metrics["mpjpe_mm"])

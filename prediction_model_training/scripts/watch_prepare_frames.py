@@ -11,13 +11,12 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SIMULATION_ROOT = ROOT.parent / "Issacsim_data_generation"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Watch IsaacSim renders and prepare frame/label data as appearances finish.")
-    parser.add_argument("--simulation-root", default=str(DEFAULT_SIMULATION_ROOT))
-    parser.add_argument("--render-root", default=str(DEFAULT_SIMULATION_ROOT / "outputs/isaacsim_humaneva_2app_notags_fisheye220"))
+    parser.add_argument("--simulation-root", default="/home/gaoweijian/Simulation")
+    parser.add_argument("--render-root", default="/home/gaoweijian/Simulation/outputs/isaacsim_humaneva_2app_notags_fisheye220")
     parser.add_argument("--label-dir", default=str(ROOT / "data/labels/isaacsim_humaneva_2app_notags_fisheye220"))
     parser.add_argument("--frame-dir", default=str(ROOT / "data/frames/isaacsim_humaneva_2app_notags_fisheye220"))
     parser.add_argument("--subjects", default="S1,S2,S3")
@@ -33,7 +32,6 @@ def main() -> int:
     args = parse_args()
     log_path = ROOT / "logs/watch_prepare_frames.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    simulation_root = Path(args.simulation_root).expanduser().resolve()
     render_root = Path(args.render_root).expanduser().resolve()
     label_dir = Path(args.label_dir).expanduser().resolve()
     frame_dir = Path(args.frame_dir).expanduser().resolve()
@@ -49,7 +47,7 @@ def main() -> int:
                 sys.executable,
                 str(ROOT / "scripts/prepare_render_dataset.py"),
                 "--simulation-root",
-                str(simulation_root),
+                str(Path(args.simulation_root).expanduser().resolve()),
                 "--render-root",
                 str(render_root),
                 "--label-dir",
@@ -75,7 +73,7 @@ def main() -> int:
             log(log_path, {"event": "prepare_return", "rc": rc})
         if args.once:
             return 0
-        active_render = has_active_own_render(simulation_root)
+        active_render = has_active_own_render()
         queue_done = render_queue_done(render_root)
         if queue_done and not active_render and count_prepared_labels(label_dir) >= count_complete_appearances(render_root):
             log(log_path, {"event": "done"})
@@ -100,12 +98,12 @@ def render_queue_done(render_root: Path) -> bool:
     return log_path.exists() and "queue_done" in log_path.read_text(encoding="utf-8", errors="ignore")
 
 
-def has_active_own_render(simulation_root: Path) -> bool:
+def has_active_own_render() -> bool:
     try:
         output = subprocess.check_output(["pgrep", "-af", "run_queue.py|scripts/render.py isaacsim|isaacsim_runner.py"], text=True)
     except subprocess.CalledProcessError:
         return False
-    return any(str(simulation_root) in line for line in output.splitlines())
+    return any("/home/gaoweijian/Simulation" in line for line in output.splitlines())
 
 
 def run_logged(command: list[str], log_path: Path) -> int:

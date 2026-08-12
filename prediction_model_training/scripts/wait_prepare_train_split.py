@@ -12,12 +12,11 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SIMULATION_ROOT = ROOT.parent / "Issacsim_data_generation"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Wait for IsaacSim renders/frames, then train separate head and wrist heatmap models.")
-    parser.add_argument("--render-root", default=str(DEFAULT_SIMULATION_ROOT / "outputs/isaacsim_humaneva_2app_notags_fisheye220"))
+    parser.add_argument("--render-root", default="/home/gaoweijian/Simulation/outputs/isaacsim_humaneva_2app_notags_fisheye220")
     parser.add_argument("--label-dir", default=str(ROOT / "data/labels/isaacsim_humaneva_2app_notags_fisheye220"))
     parser.add_argument("--frame-dir", default=str(ROOT / "data/frames/isaacsim_humaneva_2app_notags_fisheye220"))
     parser.add_argument("--expected-appearances", type=int, default=38)
@@ -43,8 +42,8 @@ def main() -> int:
     while True:
         complete = count_complete_appearances(render_root)
         prepared = count_prepared_appearances(label_dir, frame_dir, render_root)
-        active_render = has_active_process("run_queue.py|scripts/render.py isaacsim|isaacsim_runner.py", str(DEFAULT_SIMULATION_ROOT))
-        active_prepare = has_active_process("watch_prepare_frames.py|prepare_render_dataset.py|ffmpeg", str(ROOT))
+        active_render = has_active_process("run_queue.py|scripts/render.py isaacsim|isaacsim_runner.py", "/home/gaoweijian/Simulation")
+        active_prepare = has_active_process("watch_prepare_frames.py|prepare_render_dataset.py|ffmpeg", "/home/gaoweijian/EgoRear_w_hand")
         queue_done = render_queue_done(render_root)
         ready = queue_done and not active_render and not active_prepare and complete >= args.expected_appearances and prepared >= complete
         log(

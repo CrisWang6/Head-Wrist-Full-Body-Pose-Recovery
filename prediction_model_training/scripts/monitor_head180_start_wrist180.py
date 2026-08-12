@@ -13,8 +13,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 DATASET = "isaacsim_humaneva_2app_notags_fisheye220"
-PYTHON = Path(os.environ.get("PYTHON_BIN", sys.executable))
-SIM_RENDER_ROOT = Path(os.environ.get("SIM_RENDER_ROOT", str(ROOT.parent / "Issacsim_data_generation" / "outputs" / DATASET)))
+PYTHON = Path("/home/gaoweijian/miniforge3/envs/camtest/bin/python")
+SIM_RENDER_ROOT = Path("/home/gaoweijian/Simulation/outputs") / DATASET
 LABEL_ROOT = ROOT / "data" / "labels" / DATASET
 FRAME_ROOT = ROOT / "data" / "frames" / DATASET
 HEAD_CKPT = ROOT / "checkpoints" / f"{DATASET}_head_stage1"

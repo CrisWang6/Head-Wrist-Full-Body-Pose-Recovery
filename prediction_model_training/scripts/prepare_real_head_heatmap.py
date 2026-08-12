@@ -33,7 +33,7 @@ CAMERAS = ("CAM_B", "CAM_C")
 def parse_args() -> argparse.Namespace:
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset-root", default=str(root / "data/real_0717_training"))
+    parser.add_argument("--dataset-root", default="/home/gaoweijian/Desktop/0717_training")
     parser.add_argument("--csv", default="")
     parser.add_argument("--images-root", default="")
     parser.add_argument(

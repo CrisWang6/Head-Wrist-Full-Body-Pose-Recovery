@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-PYTHON_BIN="${PYTHON_BIN:-python}"
-DATA_ROOT="${DATA_ROOT:-${PROJECT}/data}"
-ARTIFACT_ROOT="${ARTIFACT_ROOT:-${PROJECT}}"
-LABELS="${LABELS:-${DATA_ROOT}/labels/real_0717_head2cam/heatmap_labels_114x64.npz}"
-PRETRAINED="${PRETRAINED:-${ARTIFACT_ROOT}/checkpoints/isaacsim_humaneva_2app_notags_fisheye220_head_stage1/best.pt}"
-OUTPUT="${OUTPUT:-${ARTIFACT_ROOT}/checkpoints/real_0717_head2cam_stage1_48h}"
-LOGS="${LOGS:-${ARTIFACT_ROOT}/logs/real_0717_head2cam_stage1_48h}"
+PROJECT=/home/gaoweijian/EgoRear_w_hand
+PYTHON=/home/gaoweijian/miniforge3/envs/camtest/bin/python
+LABELS="$PROJECT/data/labels/real_0717_head2cam/heatmap_labels_114x64.npz"
+PRETRAINED="$PROJECT/checkpoints/isaacsim_humaneva_2app_notags_fisheye220_head_stage1/best.pt"
+OUTPUT="$PROJECT/checkpoints/real_0717_head2cam_stage1_48h"
+LOGS="$PROJECT/logs/real_0717_head2cam_stage1_48h"
 
 cd "$PROJECT"
 test -f "$LABELS"
@@ -19,7 +17,7 @@ export PYTHONUNBUFFERED=1
 
 # 47.75 h lets Python write last.pt/status before the 48 h OS hard limit.
 exec timeout --signal=INT --kill-after=300s 48h \
-  "$PYTHON_BIN" scripts/train_heatmap.py \
+  "$PYTHON" scripts/train_heatmap.py \
   --label-root "$LABELS" \
   --output-dir "$OUTPUT" \
   --log-dir "$LOGS" \

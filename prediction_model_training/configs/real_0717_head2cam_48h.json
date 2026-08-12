@@ -1,7 +1,7 @@
 {
-  "dataset": "data/real_0717_training",
-  "images": "data/real_0717_training/images_h265_strict/module01/{CAM_B,CAM_C}",
-  "mocap": "data/real_0717_training/aligned_30hz.csv",
+  "dataset": "/home/gaoweijian/Desktop/0717_training",
+  "images": "/home/gaoweijian/Desktop/0717_training/images_h265_strict/module01/{CAM_B,CAM_C}",
+  "mocap": "/home/gaoweijian/Desktop/0717_training/aligned_30hz.csv",
   "views": ["module01_CAM_B", "module01_CAM_C"],
   "projection": "Kalibr omni+radtan, front 180 degrees",
   "camera_pose": "mocap Head position/orientation + measured CAM_B mount + calibrated T_C_B",

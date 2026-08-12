@@ -214,8 +214,9 @@ def main() -> int:
         visible_only_loss=True,
     )
     first = dataset[0]
-    if list(first["camera_names"]) != ["module01_CAM_B", "module01_CAM_C"]:
-        raise ValueError(f"Expected head CAM_B/C labels, got {first['camera_names']}")
+    camera_order = [str(name) for name in first["camera_names"]]
+    if len(camera_order) != 2:
+        raise ValueError(f"Expected 2 camera views, got {camera_order}")
     num_joints = int(first["head_gt_heatmap"].shape[1])
     joint_names = [str(name) for name in first.get("head_joint_names", [])]
 
@@ -294,7 +295,7 @@ def main() -> int:
         "val_frames": len(val_indices),
         "test_frames": len(test_indices),
         "device_resolved": str(device),
-        "camera_order": ["module01_CAM_B", "module01_CAM_C"],
+        "camera_order": camera_order,
         "joint_names": joint_names,
         "num_joints": num_joints,
         "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES", ""),

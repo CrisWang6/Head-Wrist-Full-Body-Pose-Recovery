@@ -1,24 +1,79 @@
 {
   "label_root": "data/labels/S2_Walking_3_stageii",
-  "image_size": [456, 256],
-  "heatmap_size": [114, 64],
+  "image_size": [
+    456,
+    256
+  ],
+  "heatmap_size": [
+    114,
+    64
+  ],
   "num_views": 8,
   "projection_model": "fisheye_equidistant",
   "fisheye_fov_deg": 220.0,
   "num_head_heatmaps": 16,
   "num_wrist_heatmaps": 7,
   "head_camera_joints": [
-    "Head", "Neck", "LeftArm", "RightArm", "LeftForeArm", "RightForeArm",
-    "LeftHand", "RightHand", "LeftUpLeg", "RightUpLeg", "LeftLeg", "RightLeg",
-    "LeftFoot", "RightFoot", "LeftToeBase", "RightToeBase"
+    "Head",
+    "Neck",
+    "LeftArm",
+    "RightArm",
+    "LeftForeArm",
+    "RightForeArm",
+    "LeftHand",
+    "RightHand",
+    "LeftUpLeg",
+    "RightUpLeg",
+    "LeftLeg",
+    "RightLeg",
+    "LeftFoot",
+    "RightFoot",
+    "LeftToeBase",
+    "RightToeBase"
   ],
   "wrist_camera_joints": [
-    "L_Ankle", "R_Ankle", "L_Knee", "R_Knee", "L_Hip", "R_Hip", "Spine1"
+    "L_Ankle",
+    "R_Ankle",
+    "L_Knee",
+    "R_Knee",
+    "L_Hip",
+    "R_Hip",
+    "Spine1"
   ],
   "loss": "head_wrist_masked_mse",
   "dataset_filter": {
-    "exclude_actions": ["Box", "ThrowCatch"],
+    "exclude_actions": [
+      "Box",
+      "ThrowCatch"
+    ],
     "appearances_per_motion": 2
   },
-  "stage1_model": "separate_resnet18_style_head_wrist_branches"
+  "stage1_model": "separate_resnet18_style_head_wrist_branches",
+  "joint_radius_px": {
+    "Head": 10,
+    "Neck": 10,
+    "LeftArm": 20,
+    "RightArm": 20,
+    "LeftForeArm": 30,
+    "RightForeArm": 30,
+    "LeftHand": 50,
+    "RightHand": 50,
+    "LeftUpLeg": 10,
+    "RightUpLeg": 10,
+    "LeftLeg": 20,
+    "RightLeg": 20,
+    "LeftFoot": 10,
+    "RightFoot": 10,
+    "LeftToeBase": 10,
+    "RightToeBase": 10,
+    "L_Hip": 10,
+    "R_Hip": 10,
+    "L_Knee": 20,
+    "R_Knee": 20,
+    "L_Ankle": 10,
+    "R_Ankle": 10,
+    "Spine1": 10
+  },
+  "default_joint_radius_px": 10,
+  "joint_radius_note": "Gaussian blob radius in source video pixels (≈3σ support). Applied at train-time in MultiViewHeatmapDataset; overrides NPZ sigma."
 }

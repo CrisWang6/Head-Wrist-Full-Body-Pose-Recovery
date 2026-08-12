@@ -6,7 +6,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from egorear_sim2d.labels import generate_heatmaps
+from egorear_sim2d.labels import DEFAULT_JOINT_HEATMAP_RADIUS_PX, generate_heatmaps, resolve_joint_radii_px
 
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
@@ -47,6 +47,8 @@ class MultiViewHeatmapDataset:
         render_root: Path | None = None,
         image_size: tuple[int, int] = (456, 256),
         visible_only_loss: bool = False,
+        joint_radius_px: dict[str, float] | None = None,
+        default_joint_radius_px: float = 10.0,
     ):
         if not label_files:
             raise FileNotFoundError("No heatmap label files were provided.")
@@ -55,6 +57,10 @@ class MultiViewHeatmapDataset:
         self.render_root = Path(render_root).expanduser().resolve() if render_root is not None else None
         self.image_size = tuple(int(v) for v in image_size)
         self.visible_only_loss = bool(visible_only_loss)
+        self.joint_radius_px = (
+            dict(joint_radius_px) if joint_radius_px is not None else dict(DEFAULT_JOINT_HEATMAP_RADIUS_PX)
+        )
+        self.default_joint_radius_px = float(default_joint_radius_px)
         self.records: list[LabelRecord] = []
         self.index: list[tuple[int, int]] = []
         for label_idx, label_path in enumerate(self.label_files):
@@ -77,19 +83,29 @@ class MultiViewHeatmapDataset:
         wrist_keypoints = data["wrist_keypoints"][frame_idx]
         wrist_visible = data["wrist_visible"][frame_idx]
         wrist_joint_mask = data["wrist_joint_mask"]
+        head_radii = resolve_joint_radii_px(
+            data["head_joint_names"],
+            self.joint_radius_px,
+            default_radius_px=self.default_joint_radius_px,
+        )
+        wrist_radii = resolve_joint_radii_px(
+            data["wrist_joint_names"],
+            self.joint_radius_px,
+            default_radius_px=self.default_joint_radius_px,
+        )
         head_heatmaps = generate_heatmaps(
             head_keypoints,
             head_visible,
             video_size=data["video_size"],
             heatmap_size=data["heatmap_size"],
-            sigma=data["sigma"],
+            joint_radii_px=head_radii,
         )
         wrist_heatmaps = generate_heatmaps(
             wrist_keypoints,
             wrist_visible,
             video_size=data["video_size"],
             heatmap_size=data["heatmap_size"],
-            sigma=data["sigma"],
+            joint_radii_px=wrist_radii,
         )
         head_loss_mask = head_visible if self.visible_only_loss else head_joint_mask
         wrist_loss_mask = wrist_visible if self.visible_only_loss else wrist_joint_mask
@@ -133,6 +149,14 @@ class MultiViewHeatmapDataset:
                     data["head_camera_joints"]
                     if "head_camera_joints" in data.files
                     else data["head_joint_names"]
+                )
+            ],
+            "wrist_joint_names": [
+                str(name)
+                for name in (
+                    data["wrist_camera_joints"]
+                    if "wrist_camera_joints" in data.files
+                    else data["wrist_joint_names"]
                 )
             ],
             "video_paths": [str(path) for path in data["video_paths"]],

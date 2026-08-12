@@ -11,13 +11,12 @@ import time
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SIMULATION_ROOT = ROOT.parent / "Issacsim_data_generation"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Wait for S2 renders, prepare frame dataset, then start stage-1 training.")
-    parser.add_argument("--simulation-root", default=str(DEFAULT_SIMULATION_ROOT))
-    parser.add_argument("--render-root", default=str(DEFAULT_SIMULATION_ROOT / "outputs/isaacsim_humaneva_5app"))
+    parser.add_argument("--simulation-root", default="/home/gaoweijian/Simulation")
+    parser.add_argument("--render-root", default="/home/gaoweijian/Simulation/outputs/isaacsim_humaneva_5app")
     parser.add_argument("--label-dir", default=str(ROOT / "data/labels/humaneva_5app"))
     parser.add_argument("--frame-dir", default=str(ROOT / "data/frames/humaneva_5app"))
     parser.add_argument("--checkpoint-dir", default=str(ROOT / "checkpoints/humaneva_5app_stage1"))
