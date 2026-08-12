@@ -1,0 +1,17 @@
+{
+  "nose": 0.625,
+  "left_shoulder": 1.25,
+  "right_shoulder": 1.25,
+  "left_elbow": 1.875,
+  "right_elbow": 1.875,
+  "left_wrist": 3.125,
+  "right_wrist": 3.125,
+  "left_hip": 0.625,
+  "right_hip": 0.625,
+  "left_knee": 1.25,
+  "right_knee": 1.25,
+  "left_ankle": 0.625,
+  "right_ankle": 0.625,
+  "left_big_toe": 0.625,
+  "right_big_toe": 0.625
+}

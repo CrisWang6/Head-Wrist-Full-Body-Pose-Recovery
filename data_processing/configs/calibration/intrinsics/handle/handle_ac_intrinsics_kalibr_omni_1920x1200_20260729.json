@@ -1,0 +1,169 @@
+{
+  "schema": "calibrate.kalibr_intrinsics.v1",
+  "generated_at": "2026-08-04T17:05:48+08:00",
+  "dataset": "C:\\Users\\hand\\Desktop\\HearWristCam\\test_code\\calibrate\\dataset\\intrinsics_dataset\\handle_dataset",
+  "camera_model": "omni",
+  "distortion_model": "radtan",
+  "resolution": [
+    1920,
+    1200
+  ],
+  "calibration_target": {
+    "type": "aprilgrid",
+    "tag_rows": 6,
+    "tag_cols": 6,
+    "tag_size_m": 0.0352,
+    "tag_spacing_ratio": 0.3
+  },
+  "camera_order": [
+    "CAM_A",
+    "CAM_D"
+  ],
+  "cameras": {
+    "CAM_A": {
+      "rostopic": "/CAM_A/image_raw",
+      "camera_model": "omni",
+      "distortion_model": "radtan",
+      "xi": 2.040073690147694,
+      "intrinsics": [
+        2.040073690147694,
+        1824.5302814197912,
+        1825.0880589426338,
+        959.518978698463,
+        520.6620132784917
+      ],
+      "distortion_coeffs": [
+        -0.15619947195001074,
+        0.43731089181968985,
+        0.00031373549083247356,
+        0.0016433464970244142
+      ],
+      "K": [
+        [
+          1824.5302814197912,
+          0.0,
+          959.518978698463
+        ],
+        [
+          0.0,
+          1825.0880589426338,
+          520.6620132784917
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.15619947195001074,
+        0.43731089181968985,
+        0.00031373549083247356,
+        0.0016433464970244142
+      ],
+      "resolution": [
+        1920,
+        1200
+      ],
+      "images_detected": 43,
+      "images_used": 39,
+      "reprojection_error_std_px": [
+        0.221434,
+        0.179853
+      ]
+    },
+    "CAM_D": {
+      "rostopic": "/CAM_D/image_raw",
+      "camera_model": "omni",
+      "distortion_model": "radtan",
+      "xi": 2.0020721289497145,
+      "intrinsics": [
+        2.0020721289497145,
+        1802.0825306956156,
+        1801.2141794624677,
+        947.5161221453002,
+        597.9673606170988
+      ],
+      "distortion_coeffs": [
+        -0.16967279855311188,
+        0.3650373667334528,
+        -0.00035961430527488243,
+        0.0013059682675517095
+      ],
+      "K": [
+        [
+          1802.0825306956156,
+          0.0,
+          947.5161221453002
+        ],
+        [
+          0.0,
+          1801.2141794624677,
+          597.9673606170988
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.16967279855311188,
+        0.3650373667334528,
+        -0.00035961430527488243,
+        0.0013059682675517095
+      ],
+      "resolution": [
+        1920,
+        1200
+      ],
+      "images_detected": 43,
+      "images_used": 39,
+      "reprojection_error_std_px": [
+        0.214552,
+        0.187181
+      ]
+    }
+  },
+  "stereo_extrinsics": {
+    "from_camera": "CAM_A",
+    "to_camera": "CAM_D",
+    "convention": "P_CAM_D = T_CAM_D_CAM_A * P_CAM_A",
+    "T_CAM_D_CAM_A": [
+      [
+        0.9995406775329344,
+        -0.003050976910685301,
+        0.0301517080261647,
+        0.21091984315293014
+      ],
+      [
+        0.0029954350295935276,
+        0.9999937331327443,
+        0.0018870782239873909,
+        0.00045529511534286724
+      ],
+      [
+        -0.03015727650150298,
+        -0.0017958939641383512,
+        0.9995435525473032,
+        -0.002358002006184539
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "baseline_m": 0.2109335148874163
+  },
+  "quality": {
+    "status": "good",
+    "notes": [
+      "CAM_A and CAM_D both detected the AprilGrid in all 43 images.",
+      "The joint calibration used 39 synchronized image pairs.",
+      "Both cameras have sub-0.23-pixel reprojection standard deviation per axis."
+    ]
+  },
+  "raw_results_directory": "kalibr_results_ad_1920x1200_20260804"
+}

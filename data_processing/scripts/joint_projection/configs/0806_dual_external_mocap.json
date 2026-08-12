@@ -1,0 +1,136 @@
+{
+  "schema": "joint_projection.dual_external_mocap.v1",
+  "description": "0806 dual external stereo: per-frame mocap poses plus per-module A-D calibration. The four-camera Kalibr chain is deliberately not used.",
+  "image_size": [
+    1920,
+    1200
+  ],
+  "display_rotate_180": true,
+  "rigid_extrinsics": "data_processing/scripts/joint_projection/external_stereo_rigid_k_extrinsics.json",
+  "T_mocap_rigid_rigid_k": [
+    [
+      0.0,
+      1.0,
+      0.0,
+      0.0
+    ],
+    [
+      -1.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "modules": {
+    "module01": {
+      "recording_directory": "external_01",
+      "rigid_prefix": "mocap_CH3_04",
+      "intrinsics": "data_processing/configs/calibration/intrinsics/handle01/handle01_ad_intrinsics_kalibr_omni_1920x1200_20260805.json",
+      "camera_a": {
+        "socket": "CAM_A",
+        "side": "left",
+        "video_glob": "left_CAM_A_*.mjpeg"
+      },
+      "camera_d": {
+        "socket": "CAM_D",
+        "side": "right",
+        "video_glob": "right_CAM_D_*.mjpeg"
+      }
+    },
+    "module02": {
+      "recording_directory": "external_02",
+      "rigid_prefix": "mocap_CH3_01",
+      "intrinsics": "data_processing/configs/calibration/intrinsics/handle/handle_ac_intrinsics_kalibr_omni_1920x1200_20260729.json",
+      "camera_a": {
+        "socket": "CAM_A",
+        "side": "left",
+        "video_glob": "left_CAM_A_*.mjpeg"
+      },
+      "camera_d": {
+        "socket": "CAM_D",
+        "side": "right",
+        "video_glob": "right_CAM_D_*.mjpeg"
+      }
+    }
+  },
+  "head": {
+    "recording_directory": "0712_033709",
+    "rigid_prefix": "mocap_CH3_08",
+    "rigid_extrinsics": "data_processing/scripts/joint_projection/head_stereo_rigid_extrinsics.json",
+    "intrinsics": "data_processing/configs/calibration/intrinsics/head/head_intrinsics_kalibr_omni_1920x1200.json",
+    "nose_offset_mm": [0.0, -15.0, -125.0],
+    "nose_offset_note": "Fixed nose tip in head-rigid coordinates (same as confirmed nose_in_CH07=[0,-15,-125] mm). 3D nose GT = T_world_CH3_08 @ nose_offset; 2D nose obs = head-camera RTMW face tip.",
+    "timestamp_match_tolerance_ms": 1.0,
+    "head_camera_rotation_basis": "xy_swap",
+    "T_mocap_rigid_head": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "T_mocap_rigid_head_note": "head_camera_rotation_basis=xy_swap only (approved fivepoint/head convention). CAM_A R=[[0,1,0],[1,0,0],[0,0,-1]] + file left center; CAM_D=R@Kalibr_R_DA.T + file right center. Fixes body ~Z-90 vs head video. T_mocap_rigid_head is identity — mirror_y was reverted because it reversed L/R hands relative to the video.",
+    "camera_a": {
+      "socket": "CAM_A",
+      "side": "left",
+      "video_glob": "module01_*_CAM_A.h265"
+    },
+    "camera_d": {
+      "socket": "CAM_D",
+      "side": "right",
+      "video_glob": "module01_*_CAM_D.h265"
+    },
+    "pose_chain_note": "T_world_camera = T_world_CH3_08 @ T_rigid_camera(xy_swap basis, file optical centers). No mirror_y."
+  },
+  "quality": {
+    "timestamp_match_tolerance_us": 2,
+    "keypoint_confidence": 0.16,
+    "minimum_ray_angle_deg": 0.5,
+    "maximum_reprojection_error_px": 35.0,
+    "robust_loss_scale_px": 8.0,
+    "cross_module_center_gate_m": 0.75
+  },
+  "known_metadata_override": {
+    "aligned_report_mapping": {
+      "external01_rigid": "CH3-01",
+      "external02_rigid": "CH3-04"
+    },
+    "confirmed_mapping": {
+      "external_01_module01": "CH3-04",
+      "external_02_module02": "CH3-01"
+    },
+    "reason": "Confirmed from the physical 0806 setup; do not infer this mapping from aligned_30hz_report.json."
+  },
+  "mocap_axis_note": "The mechanical file uses rigid-K axes. 0806 CH3 poses use a frame rotated +90 degrees about K-z relative to rigid-K, so K vectors map to mocap-rigid as (Kx,Ky,Kz)->(-Ry,Rx,Rz). This discrete correction was verified by independent stereo agreement."
+}
