@@ -9,7 +9,7 @@ TB = "/home/gaoweijian/miniforge3/envs/camtest/bin/tensorboard"
 LOGDIR_SPEC = (
     "stage1:/home/gaoweijian/0810dataset/logs/stage1_v31,"
     "stage2:/home/gaoweijian/0810dataset/logs/stage2_v31,"
-    "stage3:/home/gaoweijian/0810dataset/logs/stage3_v31_aligned"
+    "stage3:/home/gaoweijian/0810dataset/checkpoints/stage3_v31_aligned/tensorboard"
 )
 LOG = "/home/gaoweijian/0810dataset/logs/tensorboard_0810_all_stages.log"
 MARKER = "tensorboard.*0810dataset/logs.*6040"

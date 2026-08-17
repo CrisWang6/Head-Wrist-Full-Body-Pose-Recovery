@@ -443,7 +443,7 @@ def parse_rig_frame_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Interactively inspect one SMPL-X frame with head/wrist camera rigs.")
     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--frame", type=int, default=1600)
     parser.add_argument("--mesh-stride", type=int, default=3)
     parser.add_argument("--history", type=int, default=120)

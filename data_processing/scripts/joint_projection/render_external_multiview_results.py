@@ -14,7 +14,7 @@ from multiview_geometry import CameraPose, OmniCamera, load_json, stereo_transfo
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parents[1]
 DEFAULT_CONFIG = SCRIPT_DIR / "configs" / "0806_dual_external_mocap.json"
 CAMERA_ORDER = (
     "module01_CAM_A", "module01_CAM_D",

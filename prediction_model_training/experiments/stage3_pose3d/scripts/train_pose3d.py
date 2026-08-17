@@ -15,7 +15,11 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from egorear_sim2d.dataset import MultiViewHeatmapDataset, discover_label_files, torch_collate
-from egorear_sim2d.pose3d import EgoRearPose3DNet, EgoRearStage3Pipeline
+from egorear_sim2d.pose3d import (
+    EgoRearPose3DNet,
+    EgoRearStage3Pipeline,
+    EgoRearStage3Stage1Pipeline,
+)
 from egorear_sim2d.refinement import HeadBCHeatmapRefinementNet, load_refiner_state, load_stage1_model
 from egorear_sim2d.splits import load_split_manifest
 
@@ -25,7 +29,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--label-root", required=True)
     parser.add_argument("--pose3d-labels", required=True)
     parser.add_argument("--stage1-checkpoint", required=True)
-    parser.add_argument("--stage2-checkpoint", required=True)
+    parser.add_argument(
+        "--stage2-checkpoint",
+        default="",
+        help="Stage-2 refiner checkpoint. Omit when using --skip-stage2.",
+    )
+    parser.add_argument(
+        "--skip-stage2",
+        action="store_true",
+        help="Lift 3D directly from frozen stage-1 heatmaps (skip stage-2 refinement).",
+    )
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--epochs", type=int, default=24)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -168,19 +181,7 @@ def main() -> int:
     train_loader = DataLoader(_IndexedSubset(dataset, train_indices), shuffle=True, **{k: v for k, v in loader_args.items() if k != 'collate_fn'}, collate_fn=_collate_with_global_idx)
     val_loader = DataLoader(_IndexedSubset(dataset, val_indices), shuffle=False, **{k: v for k, v in loader_args.items() if k != 'collate_fn'}, collate_fn=_collate_with_global_idx)
 
-    stage2_checkpoint = torch.load(args.stage2_checkpoint, map_location="cpu", weights_only=False)
-    stage2_config = stage2_checkpoint.get("config", {})
     stage1 = load_stage1_model(args.stage1_checkpoint, num_head_heatmaps=len(joint_names))
-    stage2 = HeadBCHeatmapRefinementNet(
-        stage1,
-        num_joints=len(joint_names),
-        heatmap_size=(int(stage2_config.get("heatmap_width", 114)), int(stage2_config.get("heatmap_height", 64))),
-        base_channels=int(stage2_config.get("base_channels", 64)),
-        query_dim=int(stage2_config.get("query_dim", 256)),
-        sampling_points=int(stage2_config.get("sampling_points", 8)),
-        freeze_stage1=True,
-    )
-    load_refiner_state(stage2, stage2_checkpoint["refiner"])
     pose3d = EgoRearPose3DNet(num_joints=len(joint_names))
     resume_checkpoint = None
     start_epoch = 1
@@ -188,7 +189,35 @@ def main() -> int:
         resume_checkpoint = torch.load(args.resume, map_location="cpu", weights_only=False)
         pose3d.load_state_dict(resume_checkpoint["pose3d"], strict=True)
         start_epoch = int(resume_checkpoint.get("epoch", 0)) + 1
-    pipeline = EgoRearStage3Pipeline(stage2, pose3d)
+    if args.skip_stage2:
+        if args.stage2_checkpoint:
+            print(
+                json.dumps(
+                    {
+                        "warning": "--stage2-checkpoint ignored because --skip-stage2 is set",
+                        "stage2_checkpoint": args.stage2_checkpoint,
+                    },
+                    indent=2,
+                ),
+                flush=True,
+            )
+        pipeline = EgoRearStage3Stage1Pipeline(stage1, pose3d)
+    else:
+        if not args.stage2_checkpoint:
+            raise ValueError("--stage2-checkpoint is required unless --skip-stage2 is set")
+        stage2_checkpoint = torch.load(args.stage2_checkpoint, map_location="cpu", weights_only=False)
+        stage2_config = stage2_checkpoint.get("config", {})
+        stage2 = HeadBCHeatmapRefinementNet(
+            stage1,
+            num_joints=len(joint_names),
+            heatmap_size=(int(stage2_config.get("heatmap_width", 114)), int(stage2_config.get("heatmap_height", 64))),
+            base_channels=int(stage2_config.get("base_channels", 64)),
+            query_dim=int(stage2_config.get("query_dim", 256)),
+            sampling_points=int(stage2_config.get("sampling_points", 8)),
+            freeze_stage1=True,
+        )
+        load_refiner_state(stage2, stage2_checkpoint["refiner"])
+        pipeline = EgoRearStage3Pipeline(stage2, pose3d)
     device = torch.device(args.device if args.device == "cpu" or torch.cuda.is_available() else "cpu")
     pipeline = pipeline.to(device)
     if device.type == "cuda" and torch.cuda.device_count() > 1:
@@ -204,6 +233,7 @@ def main() -> int:
     writer = SummaryWriter(str(tensorboard_dir))
     config = vars(args) | {
         "joint_names": joint_names,
+        "skip_stage2": bool(args.skip_stage2),
         "coordinate_frame": "0806_nose_translation_offset_m",
         "target_unit": "meter",
         "train_frames": len(train_indices),

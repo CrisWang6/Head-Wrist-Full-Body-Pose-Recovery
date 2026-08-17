@@ -111,7 +111,6 @@ def main() -> int:
     joint_radius_px = {name: float(args.default_joint_radius_px) for name in head_joint_names}
     if args.joint_radius_config:
         radius_path = Path(args.joint_radius_config).expanduser()
-        sys.path.insert(0, "/home/gaoweijian/0806_batch/repo/test_code/joint_projection")
         from joint_radius_config import load_joint_radius_video_px
 
         joint_radius_px.update(load_joint_radius_video_px(radius_path))
@@ -378,6 +377,8 @@ def main() -> int:
             "optimizer": optimizer.state_dict(),
             "train_loss": train_loss,
             "val_loss": val_loss,
+            "train_pixel_error": train_result["pixel_error"],
+            "val_pixel_error": val_result["pixel_error"],
             "config": config,
         }
         torch.save(checkpoint, output_dir / "last.pt")
@@ -576,8 +577,6 @@ def add_heatmap_summary(writer, batch, pred, phase: str, epoch: int, train_branc
     pred0 = pred[branch][0, view_idx].detach().cpu()
     image = denormalize(img)
     target_max = target.max(dim=0).values.clamp(0, 1)
-    # Model outputs unbounded logits (~0.05 peak) while GT is [0, 1].
-    # Min-max fails when the field is flat (all-zero blue). Scale by peak instead.
     pred_max = pred0.clamp(min=0).max(dim=0).values
     pred_vis = (pred_max / pred_max.max().clamp_min(1e-6)).clamp(0, 1)
     target_rgb = torch.stack([target_max, torch.zeros_like(target_max), torch.zeros_like(target_max)], dim=0)

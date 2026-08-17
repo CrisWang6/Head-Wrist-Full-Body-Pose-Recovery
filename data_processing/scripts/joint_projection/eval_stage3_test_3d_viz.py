@@ -20,7 +20,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--label-root", type=Path, required=True)
     p.add_argument("--pose3d-labels", type=Path, required=True)
     p.add_argument("--stage1-checkpoint", type=Path, required=True)
-    p.add_argument("--stage2-checkpoint", type=Path, required=True)
+    p.add_argument("--stage2-checkpoint", type=Path, default=None)
+    p.add_argument("--skip-stage2", action="store_true", help="Use frozen stage1 heatmaps only (no stage2 refiner).")
     p.add_argument("--stage3-checkpoint", type=Path, required=True)
     p.add_argument("--split-manifest", type=Path, required=True)
     p.add_argument("--split-name", choices=("test", "val", "train"), default="test")
@@ -103,7 +104,11 @@ def main() -> int:
     from torch.utils.data import DataLoader, Subset
 
     from egorear_sim2d.dataset import MultiViewHeatmapDataset, discover_label_files, torch_collate
-    from egorear_sim2d.pose3d import EgoRearPose3DNet, EgoRearStage3Pipeline
+    from egorear_sim2d.pose3d import (
+        EgoRearPose3DNet,
+        EgoRearStage3Pipeline,
+        EgoRearStage3Stage1Pipeline,
+    )
     from egorear_sim2d.refinement import HeadBCHeatmapRefinementNet, load_refiner_state, load_stage1_model
     from egorear_sim2d.splits import load_split_manifest
 
@@ -169,31 +174,40 @@ def main() -> int:
     stage3_ckpt = torch.load(
         args.stage3_checkpoint.expanduser().resolve(), map_location="cpu", weights_only=False
     )
-    stage2_ckpt = torch.load(
-        args.stage2_checkpoint.expanduser().resolve(), map_location="cpu", weights_only=False
-    )
-    stage2_config = stage2_ckpt.get("config", {})
     stage1 = load_stage1_model(
         str(args.stage1_checkpoint),
         num_head_heatmaps=len(joint_names),
-        base_channels=int(stage2_config.get("base_channels", 64)),
     )
-    stage2 = HeadBCHeatmapRefinementNet(
-        stage1,
-        num_joints=len(joint_names),
-        heatmap_size=(
-            int(stage2_config.get("heatmap_width", 120)),
-            int(stage2_config.get("heatmap_height", 75)),
-        ),
-        base_channels=int(stage2_config.get("base_channels", 64)),
-        query_dim=int(stage2_config.get("query_dim", 256)),
-        sampling_points=int(stage2_config.get("sampling_points", 8)),
-        freeze_stage1=True,
-    )
-    load_refiner_state(stage2, stage2_ckpt["refiner"])
     pose3d = EgoRearPose3DNet(num_joints=len(joint_names))
     pose3d.load_state_dict(stage3_ckpt["pose3d"], strict=True)
-    pipeline = EgoRearStage3Pipeline(stage2, pose3d)
+    if args.skip_stage2:
+        pipeline = EgoRearStage3Stage1Pipeline(stage1, pose3d)
+    else:
+        if args.stage2_checkpoint is None:
+            raise ValueError("--stage2-checkpoint is required unless --skip-stage2 is set")
+        stage2_ckpt = torch.load(
+            args.stage2_checkpoint.expanduser().resolve(), map_location="cpu", weights_only=False
+        )
+        stage2_config = stage2_ckpt.get("config", {})
+        stage1 = load_stage1_model(
+            str(args.stage1_checkpoint),
+            num_head_heatmaps=len(joint_names),
+            base_channels=int(stage2_config.get("base_channels", 64)),
+        )
+        stage2 = HeadBCHeatmapRefinementNet(
+            stage1,
+            num_joints=len(joint_names),
+            heatmap_size=(
+                int(stage2_config.get("heatmap_width", 120)),
+                int(stage2_config.get("heatmap_height", 75)),
+            ),
+            base_channels=int(stage2_config.get("base_channels", 64)),
+            query_dim=int(stage2_config.get("query_dim", 256)),
+            sampling_points=int(stage2_config.get("sampling_points", 8)),
+            freeze_stage1=True,
+        )
+        load_refiner_state(stage2, stage2_ckpt["refiner"])
+        pipeline = EgoRearStage3Pipeline(stage2, pose3d)
 
     device = torch.device(args.device if args.device == "cpu" or torch.cuda.is_available() else "cpu")
     pipeline = pipeline.to(device).eval()
@@ -276,6 +290,7 @@ def main() -> int:
         "limb": args.limb,
         "split_manifest": str(args.split_manifest),
         "stage3_checkpoint": str(args.stage3_checkpoint),
+        "skip_stage2": bool(args.skip_stage2),
         "stage3_epoch": int(stage3_ckpt.get("epoch", -1)),
         "frames": len(seqs),
         "seq_start": int(min(seqs)) if seqs else None,

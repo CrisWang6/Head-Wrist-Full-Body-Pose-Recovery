@@ -28,7 +28,7 @@ from multiview_geometry import (
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parents[1]
 DEFAULT_CONFIG = SCRIPT_DIR / "configs" / "0806_dual_external_mocap.json"
 NAMES = (
     "nose", "left_eye", "right_eye", "left_ear", "right_ear",

@@ -21,7 +21,7 @@ from geosim.visualization import render_motion_video
 
 def parse_geometry_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run geometry-only wrist tag simulation.")
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
     parser.add_argument("--motion", action="append", default=[], help="Prepared or AMASS motion .npz file. Can be repeated.")
     parser.add_argument("--motion-dir", default="", help="Directory containing prepared or AMASS motion .npz files.")

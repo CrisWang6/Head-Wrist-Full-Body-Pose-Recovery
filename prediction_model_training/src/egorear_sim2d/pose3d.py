@@ -164,3 +164,37 @@ class EgoRearStage3Pipeline(nn.Module):
         )
         output["refined_heatmaps"] = refinement["refined"]
         return output
+
+
+class EgoRearStage3Stage1Pipeline(nn.Module):
+    """Freeze stage-1 heatmaps/features and train only the 3D lifter (skip stage-2)."""
+
+    def __init__(self, stage1: nn.Module, pose3d: EgoRearPose3DNet):
+        super().__init__()
+        self.stage1 = stage1
+        self.pose3d = pose3d
+        self.stage1.requires_grad_(False)
+        self.stage1.eval()
+
+    def train(self, mode: bool = True):
+        super().train(mode)
+        self.stage1.eval()
+        return self
+
+    def _stage1_outputs(self, rgb_images: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        if rgb_images.ndim != 5 or rgb_images.shape[1] != 2:
+            raise ValueError(f"Expected RGB [B,2,3,H,W], got {tuple(rgb_images.shape)}")
+        batch, views = rgb_images.shape[:2]
+        flat = rgb_images.reshape(batch * views, *rgb_images.shape[2:])
+        features = self.stage1.head_branch.forward_features(flat)
+        heatmaps = self.stage1.head_branch.head(features)
+        heatmaps = heatmaps.reshape(batch, views, *heatmaps.shape[1:])
+        features = features.reshape(batch, views, *features.shape[1:])
+        return heatmaps, features
+
+    def forward(self, rgb_images: torch.Tensor) -> dict[str, torch.Tensor]:
+        with torch.no_grad():
+            heatmaps, features = self._stage1_outputs(rgb_images)
+        output = self.pose3d(rgb_images, heatmaps, features)
+        output["refined_heatmaps"] = heatmaps
+        return output

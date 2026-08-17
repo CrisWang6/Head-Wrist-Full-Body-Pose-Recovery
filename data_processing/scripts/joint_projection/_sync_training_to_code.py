@@ -150,7 +150,7 @@ GWJ_UPLOAD_JP_FILES = [
 
 def patch_python_for_code_layout(text: str) -> str:
     text = text.replace(
-        "REPO_ROOT = SCRIPT_DIR.parents[1]",
+        "REPO_ROOT = SCRIPT_DIR.parents[2]",
         "REPO_ROOT = SCRIPT_DIR.parents[2]",
     )
     return text

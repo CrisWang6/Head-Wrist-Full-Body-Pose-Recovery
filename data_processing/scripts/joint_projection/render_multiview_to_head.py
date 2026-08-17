@@ -96,7 +96,7 @@ def draw_skeleton_nose_only_face(
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-REPO_ROOT = SCRIPT_DIR.parents[2]
+REPO_ROOT = SCRIPT_DIR.parents[1]
 DEFAULT_CONFIG = SCRIPT_DIR / "configs" / "0806_dual_external_mocap.json"
 DEFAULT_HEAD_RIGID = SCRIPT_DIR / "head_stereo_rigid_extrinsics.json"
 DEFAULT_HEAD_INTRINSICS = (

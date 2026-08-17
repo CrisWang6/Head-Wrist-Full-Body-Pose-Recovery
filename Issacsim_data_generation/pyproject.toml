@@ -15,12 +15,8 @@ viewer = []
 realistic = [
   "opencv-python>=4.8",
 ]
-visualization = [
-  "open3d>=0.18",
-]
-dev = [
-  "pytest>=8",
-  "ruff>=0.9",
+assets = [
+  "py7zr>=1.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -6,7 +6,7 @@
     1200
   ],
   "display_rotate_180": true,
-  "rigid_extrinsics": "data_processing/scripts/joint_projection/external_stereo_rigid_k_extrinsics.json",
+  "rigid_extrinsics": "test_code/joint_projection/external_stereo_rigid_k_extrinsics.json",
   "T_mocap_rigid_rigid_k": [
     [
       0.0,
@@ -37,7 +37,7 @@
     "module01": {
       "recording_directory": "external_01",
       "rigid_prefix": "mocap_CH3_04",
-      "intrinsics": "data_processing/configs/calibration/intrinsics/handle01/handle01_ad_intrinsics_kalibr_omni_1920x1200_20260805.json",
+      "intrinsics": "test_code/calibrate/parameters/intrinsics/handle01/handle01_ad_intrinsics_kalibr_omni_1920x1200_20260805.json",
       "camera_a": {
         "socket": "CAM_A",
         "side": "left",
@@ -52,7 +52,7 @@
     "module02": {
       "recording_directory": "external_02",
       "rigid_prefix": "mocap_CH3_01",
-      "intrinsics": "data_processing/configs/calibration/intrinsics/handle/handle_ac_intrinsics_kalibr_omni_1920x1200_20260729.json",
+      "intrinsics": "test_code/calibrate/parameters/intrinsics/handle/handle_ac_intrinsics_kalibr_omni_1920x1200_20260729.json",
       "camera_a": {
         "socket": "CAM_A",
         "side": "left",
@@ -68,8 +68,8 @@
   "head": {
     "recording_directory": "0712_033709",
     "rigid_prefix": "mocap_CH3_08",
-    "rigid_extrinsics": "data_processing/scripts/joint_projection/head_stereo_rigid_extrinsics.json",
-    "intrinsics": "data_processing/configs/calibration/intrinsics/head/head_intrinsics_kalibr_omni_1920x1200.json",
+    "rigid_extrinsics": "test_code/joint_projection/head_stereo_rigid_extrinsics.json",
+    "intrinsics": "test_code/calibrate/parameters/intrinsics/head/head_intrinsics_kalibr_omni_1920x1200.json",
     "nose_offset_mm": [0.0, -15.0, -125.0],
     "nose_offset_note": "Fixed nose tip in head-rigid coordinates (same as confirmed nose_in_CH07=[0,-15,-125] mm). 3D nose GT = T_world_CH3_08 @ nose_offset; 2D nose obs = head-camera RTMW face tip.",
     "timestamp_match_tolerance_ms": 1.0,

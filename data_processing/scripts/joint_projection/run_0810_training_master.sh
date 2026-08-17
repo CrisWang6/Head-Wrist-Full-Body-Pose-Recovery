@@ -102,7 +102,7 @@ run_stage2() {
     --stage1-checkpoint "$DATASET/checkpoints/stage1_${SCHEME}/best.pt" \
     --output-dir "$out" --log-dir "$logd" --split-manifest "$SPLIT" \
     --epochs 9999 --batch-size 16 --workers 8 --lr 0.001 --weight-decay 0.005 \
-    --selection-metric refined_pixel_error --min-epochs 1 --early-stop-patience 20 \
+    --selection-metric refined_pixel_error --min-epochs 100 --early-stop-patience 9999 \
     --heatmap-width "$HM_W" --heatmap-height "$HM_H" \
     --image-width "$IMG_W" --image-height "$IMG_H" \
     --base-channels 64 --device cuda --seed 42 --max-hours 72

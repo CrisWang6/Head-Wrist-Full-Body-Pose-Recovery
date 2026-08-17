@@ -52,7 +52,7 @@ class RenderTarget:
 def parse_head_tags_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render stereo head-camera tag views and estimate tag poses.")
     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
     parser.add_argument("--output-dir", default=str(ROOT / "outputs/camera_views"))
     parser.add_argument("--output-fps", type=float, default=30.0)
@@ -685,7 +685,7 @@ CAMERA_CHOICES = ("BOTH", "WRIST_FORWARD", "WRIST_PALM_NORMAL")
 def parse_wrist_views_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render wrist-mounted fisheye camera views for an AMASS motion.")
     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
     parser.add_argument("--camera", default="BOTH", choices=CAMERA_CHOICES)
     parser.add_argument("--output-dir", default=str(ROOT / "outputs/wrist_camera_views"))
@@ -885,7 +885,7 @@ def _resize_wrist_camera(camera: WristFisheyeCamera, width: int, height: int) ->
 def parse_blenderproc_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render an AMASS/SMPL-X motion with BlenderProc cameras and wrist tags.")
     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
     parser.add_argument("--output-dir", default="", help="Defaults to outputs/blenderproc/<motion_stem>.")
     parser.add_argument("--output-fps", type=float, default=30.0)
@@ -1030,7 +1030,7 @@ def blenderproc_main() -> int:
 def parse_isaacsim_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Render an AMASS/SMPL-X motion with Isaac Sim cameras.")
     parser.add_argument("--motion", default=str(ROOT / "test_motion/HumanEva/S1/Walking_3_stageii.npz"))
-    parser.add_argument("--config", default=str(ROOT / "configs/default_geometry.json"))
+    parser.add_argument("--config", default=str(ROOT / "config/default_geometry.json"))
     parser.add_argument("--smplx-model", default=str(ROOT / "smplx_models/SMPLX_NEUTRAL_2020.npz"))
     parser.add_argument("--output-dir", default="", help="Defaults to outputs/isaacsim/<motion_stem>.")
     parser.add_argument("--output-fps", type=float, default=30.0)
@@ -1043,7 +1043,7 @@ def parse_isaacsim_args() -> argparse.Namespace:
         choices=("smplx_relative", "smplx", "shoulders"),
         help="Head rig orientation. 'smplx_relative' calibrates the first frame to the rig axes, then follows SMPL-X Head rotation.",
     )
-    parser.add_argument("--isaacsim-python", default=os.environ.get("ISAACSIM_PYTHON", ""))
+    parser.add_argument("--isaacsim-python", default="/home/gaoweijian/isaacsim/python.sh")
     parser.add_argument("--renderer", default="RayTracedLighting", choices=("RayTracedLighting", "PathTracing"))
     parser.add_argument("--rt-subframes", type=int, default=1)
     parser.add_argument("--warmup-frames", type=int, default=12)
@@ -1339,10 +1339,8 @@ def _resolve_isaacsim_python(explicit: str) -> str:
             raise FileNotFoundError(f"Isaac Sim python does not exist: {path}")
         return str(path)
     candidates = (
-        Path.home() / "isaacsim" / "python.sh",
-        Path.home() / "isaacsim" / "kit" / "python.sh",
-        Path("/opt/isaacsim/python.sh"),
-        Path("/opt/isaacsim/kit/python.sh"),
+        Path("/home/gaoweijian/isaacsim/python.sh"),
+        Path("/home/gaoweijian/isaacsim/kit/python.sh"),
     )
     for path in candidates:
         if path.exists():

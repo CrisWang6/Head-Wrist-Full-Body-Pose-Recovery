@@ -39,7 +39,7 @@ class SimulationConfig:
     max_frames: int = 0
 
 
-def load_config(path: str | Path = "configs/default_geometry.json") -> SimulationConfig:
+def load_config(path: str | Path = "config/default_geometry.json") -> SimulationConfig:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     camera_data = data.get("camera_rig", {})
     tag_data = data.get("tag_rig", {})
