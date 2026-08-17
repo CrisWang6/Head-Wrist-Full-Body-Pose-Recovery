@@ -97,6 +97,8 @@ def patch_config_json(text: str) -> str:
 def should_skip(name: str, is_dir: bool) -> bool:
     if name in SKIP_DIR_NAMES:
         return True
+    if "thuman" in name.lower():
+        return True
     if not is_dir:
         low = name.lower()
         for suf in SKIP_FILE_SUFFIXES:
